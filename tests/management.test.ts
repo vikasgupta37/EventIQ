@@ -52,6 +52,16 @@ async function propose(message = "Reduce my budget to ₹10 lakh.") {
   return result.json();
 }
 beforeAll(async () => {
+  // This suite must work on a fresh database, without seeds or another test suite.
+  await db.user.upsert({
+    where: { id: "demo-user" },
+    create: {
+      id: "demo-user",
+      email: "demo@eventiq.local",
+      name: "Demo Planner",
+    },
+    update: {},
+  });
   for (let i = 0; i < 2; i++) {
     const s = await createEvent(
       {
