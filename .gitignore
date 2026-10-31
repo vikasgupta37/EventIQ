@@ -163,3 +163,5 @@ artifacts/
 eventiq-preview.png
 Thumbs.db
 .DS_Store
+
+.vercel/

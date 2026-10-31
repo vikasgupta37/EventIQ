@@ -380,7 +380,10 @@ export function identify_risks(e: EventState, now = today()): Risk[] {
     add(
       "Key services still need booking",
       daysUntil(e.date, now) < 60 ? "High" : "Medium",
-      `${missing.map((v) => v.name).join(", ")} have no recorded booking.`,
+      `${missing
+        .map((v) => v.name)
+        .sort()
+        .join(", ")} have no recorded booking.`,
       "Request availability and written terms; update status only after confirmation.",
     );
   if (e.venueCapacity !== null && e.guestCount > e.venueCapacity)

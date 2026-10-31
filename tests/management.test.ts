@@ -1,3 +1,5 @@
+vi.mock("../lib/rate-limit", () => ({ limitRequests: vi.fn() }));
+import { vi } from "vitest";
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";

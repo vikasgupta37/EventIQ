@@ -34,13 +34,13 @@ As plans change, ask the AI planner for help. EventIQ calculates the consequence
 
 > **The core idea:** AI helps interpret intent and personalize a plan. Deterministic code calculates budgets and dependencies. The user approves AI changes to an existing event.
 
-| For visitors | What to explore |
-| --- | --- |
-| **Users** | One workspace for planning, RSVPs, costs, and next steps |
-| **Hackathon judges** | A stateful agent with validated tools, reviewable changes, and undo |
+| For visitors                  | What to explore                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Users**                     | One workspace for planning, RSVPs, costs, and next steps                                         |
+| **Hackathon judges**          | A stateful agent with validated tools, reviewable changes, and undo                              |
 | **Developers and recruiters** | Typed domain logic, relational persistence, transactional updates, and unit/UI/integration tests |
 
-**Current scope:** a working local MVP. Offline demo mode needs no AI key. Connected AI and transcription are optional. Payment entries are records of money already paid; supplier search, booking, and payment processing are not connected.
+**Current scope:** a full-stack MVP with Google sign-in for public deployments and an optional local demo mode. Offline demo mode needs no AI key. Connected AI and transcription are optional. Payment entries are records of money already paid; supplier search, booking, and payment processing are not connected.
 
 ## 🎯 Problem statement
 
@@ -60,20 +60,20 @@ EventIQ connects the planning conversation to structured event data:
 
 ## 🚀 Key features
 
-| Feature | What it delivers |
-| --- | --- |
-| **Natural-language event creation** | Editable extraction with explicit assumptions before saving |
-| **Connected AI planner** | Stateful conversation and validated tool calls against an isolated draft |
-| **Review and undo** | Persisted proposals, readable differences, apply/discard, and version-checked undo |
-| **Budget planning** | Ten allocation categories, approximately 10% contingency rounded to whole currency units, fixed photography allocations, and separate estimates |
-| **Tasks and timeline** | Dependencies, priorities, owners, deadlines, progress, and preservation of customized tasks |
-| **Service checklist** | Requirements, selection criteria, questions, notes, estimates, and user-managed booking statuses |
-| **Guests and RSVPs** | Party counts, plus-ones, dietary preferences, seating groups, and explicit headcount synchronization |
-| **Expenses and payments** | Quotes versus commitments, deposits, outstanding balances, and overpayment prevention |
-| **Risk insights** | Budget overruns, preparation constraints, missing bookings, and capacity concerns |
-| **Voice interaction** | On-demand recording, editable transcription, and optional browser-generated spoken replies |
-| **Personal workspace** | Event switching, responsive layouts, light/dark/system appearance, and a time-zone-aware live clock |
-| **Offline demo** | Supported planning commands work without an API key, clearly labeled as deterministic demo behavior |
+| Feature                             | What it delivers                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Natural-language event creation** | Editable extraction with explicit assumptions before saving                                                                                     |
+| **Connected AI planner**            | Stateful conversation and validated tool calls against an isolated draft                                                                        |
+| **Review and undo**                 | Persisted proposals, readable differences, apply/discard, and version-checked undo                                                              |
+| **Budget planning**                 | Ten allocation categories, approximately 10% contingency rounded to whole currency units, fixed photography allocations, and separate estimates |
+| **Tasks and timeline**              | Dependencies, priorities, owners, deadlines, progress, and preservation of customized tasks                                                     |
+| **Service checklist**               | Requirements, selection criteria, questions, notes, estimates, and user-managed booking statuses                                                |
+| **Guests and RSVPs**                | Party counts, plus-ones, dietary preferences, seating groups, and explicit headcount synchronization                                            |
+| **Expenses and payments**           | Quotes versus commitments, deposits, outstanding balances, and overpayment prevention                                                           |
+| **Risk insights**                   | Budget overruns, preparation constraints, missing bookings, and capacity concerns                                                               |
+| **Voice interaction**               | On-demand recording, editable transcription, and optional browser-generated spoken replies                                                      |
+| **Personal workspace**              | Event switching, responsive layouts, light/dark/system appearance, and a time-zone-aware live clock                                             |
+| **Offline demo**                    | Supported planning commands work without an API key, clearly labeled as deterministic demo behavior                                             |
 
 <a id="screenshots"></a>
 
@@ -107,13 +107,13 @@ The ledger separates estimated planning costs from confirmed expenses and record
 
 ## 🧭 How EventIQ works
 
-| Step | User action | System behavior |
-| --- | --- | --- |
-| **1. Describe** | Enter the event type, location, date, guests, and budget | Extracts structured details and lists assumptions |
-| **2. Review** | Correct the brief and create the event | Saves the initial plan with budgets, tasks, services, and risks |
-| **3. Ask** | Request a change by text or reviewed voice transcript | Runs tools on a draft and recalculates affected sections |
-| **4. Approve** | Inspect differences and select **Apply changes** | Checks the event version and commits the approved proposal transactionally |
-| **5. Execute** | Update tasks, RSVPs, services, and expense records | Refreshes saved state and relevant planning summaries |
+| Step            | User action                                              | System behavior                                                            |
+| --------------- | -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **1. Describe** | Enter the event type, location, date, guests, and budget | Extracts structured details and lists assumptions                          |
+| **2. Review**   | Correct the brief and create the event                   | Saves the initial plan with budgets, tasks, services, and risks            |
+| **3. Ask**      | Request a change by text or reviewed voice transcript    | Runs tools on a draft and recalculates affected sections                   |
+| **4. Approve**  | Inspect differences and select **Apply changes**         | Checks the event version and commits the approved proposal transactionally |
+| **5. Execute**  | Update tasks, RSVPs, services, and expense records       | Refreshes saved state and relevant planning summaries                      |
 
 Initial creation and manual form edits save directly. AI changes to existing events use the proposal flow. Read-only answers save conversation messages without changing the plan.
 
@@ -254,12 +254,12 @@ Diagram source: [docs/data-flow.mmd](docs/data-flow.mmd). See the [documentation
 
 [The orchestrator](lib/agent/orchestrator.ts) exposes four model-callable tools. Tool names describe capabilities; existing-event mutations run against an isolated in-memory draft.
 
-| Model-callable tool | Responsibility | Boundary |
-| --- | --- | --- |
-| `get_event_state` | Read the current structured planning state | Guest contact records and the expense ledger are separate |
-| `update_event_state` | Change supported event requirements and regenerate dependent sections | Arguments are validated; cannot mark a supplier booked |
-| `create_event_plan` | Personalize category weights and ideas | Code performs allocation arithmetic and validates category uniqueness |
-| `search_vendors` | Report supplier-search availability | Returns unavailable until a real provider is connected |
+| Model-callable tool  | Responsibility                                                        | Boundary                                                              |
+| -------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `get_event_state`    | Read the current structured planning state                            | Guest contact records and the expense ledger are separate             |
+| `update_event_state` | Change supported event requirements and regenerate dependent sections | Arguments are validated; cannot mark a supplier booked                |
+| `create_event_plan`  | Personalize category weights and ideas                                | Code performs allocation arithmetic and validates category uniqueness |
+| `search_vendors`     | Report supplier-search availability                                   | Returns unavailable until a real provider is connected                |
 
 The connected loop uses the OpenAI Responses API, the latest 12 conversation messages, and up to six model iterations. Parallel tool calls are disabled. Unsupported tools and invalid arguments fail the turn; existing saved event state is not partially updated.
 
@@ -271,16 +271,21 @@ The broader [typed service surface](lib/tools/index.ts) includes extraction, bud
 
 ## 🧰 Tech stack
 
-| Layer | Technology | Role |
-| --- | --- | --- |
-| Application | Next.js 16.4.3, React 19, TypeScript | App Router, route handlers, typed UI and domain code |
-| Presentation | CSS, Lucide React, Recharts | Responsive styling, icons, and budget visualization |
-| Validation | Zod 4 | Request schemas and model-tool argument validation |
-| Persistence | PostgreSQL, Prisma 6.19 | Relational models, migrations, and transactions |
-| AI | OpenAI SDK | Structured extraction, Responses tool calling, and transcription |
-| Voice | MediaRecorder, browser speech synthesis | On-demand capture and optional spoken replies |
-| Tests | Vitest, Testing Library, jsdom | Domain, mocked agent, UI, and API/database tests |
-| Local tooling | pnpm, tsx, embedded-postgres or Docker Compose | Dependencies, scripts, and local PostgreSQL |
+| Layer          | Technology                                     | Role                                                               |
+| -------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| Application    | Next.js 16.4.3, React 19, TypeScript           | App Router, route handlers, typed UI and domain code               |
+| Presentation   | CSS, Lucide React, Recharts                    | Responsive styling, icons, and budget visualization                |
+| Authentication | NextAuth.js, Google OAuth                      | Verified sign-in, encrypted sessions, and separate user workspaces |
+| Validation     | Zod 4                                          | Request schemas and model-tool argument validation                 |
+| Persistence    | PostgreSQL, Prisma 6.19                        | Relational models, migrations, and transactions                    |
+| AI             | OpenAI SDK                                     | Structured extraction, Responses tool calling, and transcription   |
+| Voice          | MediaRecorder, browser speech synthesis        | On-demand capture and optional spoken replies                      |
+| Tests          | Vitest, Testing Library, jsdom                 | Domain, mocked agent, UI, and API/database tests                   |
+| Local tooling  | pnpm, tsx, embedded-postgres or Docker Compose | Dependencies, scripts, and local PostgreSQL                        |
+
+## ☁️ Deploy on Vercel
+
+Public deployments use Google sign-in, a hosted PostgreSQL database, and separate user workspaces. Follow the **[Vercel deployment guide](docs/deployment.md)** for OAuth callbacks, environment variables, database setup, and release checks. The Vercel build rejects shared demo mode and missing production configuration.
 
 <a id="setup"></a>
 
@@ -323,11 +328,11 @@ pnpm db:generate
 
 Choose one option. Both local options use port **54329**; do not run them together.
 
-| Option | Command | Notes |
-| --- | --- | --- |
-| **Embedded PostgreSQL** | `pnpm db:local` | No Docker required; keep this terminal open |
-| **Docker Compose** | `docker compose up -d` | PostgreSQL 17 with a named persistent volume |
-| **Hosted PostgreSQL** | Set `DATABASE_URL` | Skip both local database commands; use a development database |
+| Option                  | Command                | Notes                                                         |
+| ----------------------- | ---------------------- | ------------------------------------------------------------- |
+| **Embedded PostgreSQL** | `pnpm db:local`        | No Docker required; keep this terminal open                   |
+| **Docker Compose**      | `docker compose up -d` | PostgreSQL 17 with a named persistent volume                  |
+| **Hosted PostgreSQL**   | Set `DATABASE_URL`     | Skip both local database commands; use a development database |
 
 The embedded runner stores data in `.data/postgres/` and binds to loopback. Stop it gracefully with **Ctrl+C**. Do not launch a second embedded instance against the same data directory.
 
@@ -357,18 +362,22 @@ pnpm build
 pnpm start
 ```
 
-Keep PostgreSQL running. Production output uses `.next-production/`; development uses `.next/`. The start script also binds to loopback. A production build does not add production authentication.
+Keep PostgreSQL running. Production output uses `.next-production/`; development uses `.next/`. The start script also binds to loopback. For Google sign-in, set `DEMO_MODE=false` and configure the OAuth variables below. Vercel rejects shared demo mode.
 
 ### Environment variables
 
-| Variable | Example/default in this repository | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | `postgresql://eventiq:eventiq_local_only@127.0.0.1:54329/eventiq_utf8?schema=public` | Local development connection; replace for your database |
-| `DEMO_MODE` | `true` | Enables the shared local demo identity |
-| `APP_ORIGIN` | `http://127.0.0.1:3000` | Expected browser origin for mutations |
-| `OPENAI_API_KEY` | Empty | Server-side key; empty enables offline planning |
-| `OPENAI_MODEL` | `gpt-5.4-mini` | Configurable model name used for extraction and planning |
-| `OPENAI_TRANSCRIBE_MODEL` | `gpt-transcribe` | Configurable transcription model name |
+| Variable                                    | Example/default in this repository                                                   | Purpose                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `DATABASE_URL`                              | `postgresql://eventiq:eventiq_local_only@127.0.0.1:54329/eventiq_utf8?schema=public` | Local development connection; replace for your database       |
+| `DEMO_MODE`                                 | `true` locally; `false` on Vercel                                                    | Enables local-only demo identity                              |
+| `APP_ORIGIN`                                | `http://127.0.0.1:3000`                                                              | Expected browser origin for mutations                         |
+| `NEXTAUTH_URL`                              | Same origin as `APP_ORIGIN`                                                          | Canonical authentication URL                                  |
+| `NEXTAUTH_SECRET`                           | Empty locally                                                                        | Random session-encryption secret; required for Google sign-in |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Empty locally                                                                        | Google OAuth web client credentials                           |
+| `DIRECT_URL`                                | Optional                                                                             | Non-pooled hosted connection used for deployment migrations   |
+| `OPENAI_API_KEY`                            | Empty                                                                                | Server-side key; empty enables offline planning               |
+| `OPENAI_MODEL`                              | `gpt-5.4-mini`                                                                       | Configurable model name used for extraction and planning      |
+| `OPENAI_TRANSCRIBE_MODEL`                   | `gpt-transcribe`                                                                     | Configurable transcription model name                         |
 
 Model names above are repository configuration values, not a guarantee of account availability. Choose compatible models accessible to your account and restart the app after changing the environment. Never commit a populated `.env`.
 
@@ -389,14 +398,14 @@ On Windows, stop the Next.js process before regenerating Prisma if its engine DL
 
 ### Troubleshooting
 
-| Symptom | What to check |
-| --- | --- |
-| Database connection fails | PostgreSQL is running; `DATABASE_URL` matches the selected database |
-| Port 54329 is occupied | Only one database option is running |
-| Cross-origin write rejected | Browser URL and `APP_ORIGIN` match exactly, including hostname and port |
-| AI or transcription is unavailable | Server key, configured model, account access, and connectivity |
+| Symptom                                    | What to check                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Database connection fails                  | PostgreSQL is running; `DATABASE_URL` matches the selected database                                                      |
+| Port 54329 is occupied                     | Only one database option is running                                                                                      |
+| Cross-origin write rejected                | Browser URL and `APP_ORIGIN` match exactly, including hostname and port                                                  |
+| AI or transcription is unavailable         | Server key, configured model, account access, and connectivity                                                           |
 | Dependencies fail after moving the project | Run `pnpm install` and `pnpm db:generate` on the target machine; do not reuse another machine's `node_modules` junctions |
-| Microphone is unavailable | Use HTTPS or localhost, allow browser permission, or type the request instead |
+| Microphone is unavailable                  | Use HTTPS or localhost, allow browser permission, or type the request instead                                            |
 
 ## 🧪 Testing
 
@@ -409,19 +418,19 @@ pnpm test
 pnpm build
 ```
 
-| Coverage area | Examples |
-| --- | --- |
-| Domain logic | Extraction, valid dates, allocation totals, fixed budgets, task preservation, risks |
-| Agent behavior | Mocked tool selection, argument validation, and provider failures |
-| API and database | Persistence, ownership, stale-state checks, guests, payments, proposal lifecycle |
-| UI | Creation, chat approval, task actions, expenses, voice controls, appearance, and clock preferences |
+| Coverage area    | Examples                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| Domain logic     | Extraction, valid dates, allocation totals, fixed budgets, task preservation, risks                |
+| Agent behavior   | Mocked tool selection, argument validation, and provider failures                                  |
+| API and database | Persistence, ownership, stale-state checks, guests, payments, proposal lifecycle                   |
+| UI               | Creation, chat approval, task actions, expenses, voice controls, appearance, and clock preferences |
 
 **Integration prerequisites:** `pnpm test` includes PostgreSQL-backed tests. Provide `.env`, a running development database, and applied migrations. Integration tests create disposable events and clean up their own records; use a dedicated development/test database.
 
 To run only the unit and mocked UI suites:
 
 ```sh
-pnpm exec vitest run tests/engines.test.ts tests/agent.test.ts tests/frontend.test.ts tests/management-ui.test.ts tests/voice.test.ts tests/voice-ui.test.ts tests/appearance.test.ts tests/clock.test.ts
+pnpm exec vitest run tests/engines.test.ts tests/agent.test.ts tests/frontend.test.ts tests/management-ui.test.ts tests/voice.test.ts tests/voice-ui.test.ts tests/appearance.test.ts tests/clock.test.ts tests/auth.test.ts tests/account-ui.test.ts tests/request-body.test.ts
 ```
 
 <details>
@@ -474,30 +483,30 @@ EventIQ/
 
 All routes below are prefixed with `/api`. Resource access is scoped through the current-user adapter. JSON is used for ordinary mutation bodies; transcription accepts multipart form data.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/health` | Runtime planner mode; not a database readiness probe |
-| POST | `/extract` | Extract a reviewable event brief |
-| GET / POST | `/events` | List / create events |
-| GET / PATCH / DELETE | `/events/:id` | Read / edit and replan / delete |
-| POST | `/events/:id/chat` | Send a message and optionally stage a proposal |
-| POST | `/events/:id/plan` | Propose plan personalization |
-| GET | `/events/:id/budget` | Allocations, estimates, and contingency |
-| POST | `/events/:id/budget/rebalance` | Propose budget rebalancing |
-| GET | `/events/:id/timeline`, `/events/:id/ideas`, `/events/:id/risks` | Read planning outputs |
-| GET / POST | `/events/:id/tasks` | List / add tasks |
-| PATCH / DELETE | `/tasks/:id` | Edit / delete a task |
-| GET / POST | `/events/:id/vendors` | List / add service requirements |
-| PATCH | `/vendors/:id` | Update service status, notes, or estimate |
-| GET / POST | `/events/:id/guests` | List / add guests |
-| PATCH / DELETE | `/events/:id/guests/:guestId` | Edit / delete a guest |
-| GET / POST | `/events/:id/expenses` | List / add expenses |
-| PATCH / DELETE | `/events/:id/expenses/:expenseId` | Edit / delete an expense |
-| POST | `/events/:id/expenses/:expenseId/payments` | Record a payment |
-| DELETE | `/events/:id/expenses/:expenseId/payments/:paymentId` | Remove a payment record |
-| GET | `/events/:id/changes` | Latest 50 proposal summaries |
-| POST | `/events/:id/changes/:changeId/{apply,discard,undo}` | Resolve a proposal; choose one action |
-| POST | `/events/:id/transcribe` | Transcribe an `audio` upload |
+| Method               | Path                                                             | Purpose                                              |
+| -------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- |
+| GET                  | `/health`                                                        | Runtime planner mode; not a database readiness probe |
+| POST                 | `/extract`                                                       | Extract a reviewable event brief                     |
+| GET / POST           | `/events`                                                        | List / create events                                 |
+| GET / PATCH / DELETE | `/events/:id`                                                    | Read / edit and replan / delete                      |
+| POST                 | `/events/:id/chat`                                               | Send a message and optionally stage a proposal       |
+| POST                 | `/events/:id/plan`                                               | Propose plan personalization                         |
+| GET                  | `/events/:id/budget`                                             | Allocations, estimates, and contingency              |
+| POST                 | `/events/:id/budget/rebalance`                                   | Propose budget rebalancing                           |
+| GET                  | `/events/:id/timeline`, `/events/:id/ideas`, `/events/:id/risks` | Read planning outputs                                |
+| GET / POST           | `/events/:id/tasks`                                              | List / add tasks                                     |
+| PATCH / DELETE       | `/tasks/:id`                                                     | Edit / delete a task                                 |
+| GET / POST           | `/events/:id/vendors`                                            | List / add service requirements                      |
+| PATCH                | `/vendors/:id`                                                   | Update service status, notes, or estimate            |
+| GET / POST           | `/events/:id/guests`                                             | List / add guests                                    |
+| PATCH / DELETE       | `/events/:id/guests/:guestId`                                    | Edit / delete a guest                                |
+| GET / POST           | `/events/:id/expenses`                                           | List / add expenses                                  |
+| PATCH / DELETE       | `/events/:id/expenses/:expenseId`                                | Edit / delete an expense                             |
+| POST                 | `/events/:id/expenses/:expenseId/payments`                       | Record a payment                                     |
+| DELETE               | `/events/:id/expenses/:expenseId/payments/:paymentId`            | Remove a payment record                              |
+| GET                  | `/events/:id/changes`                                            | Latest 50 proposal summaries                         |
+| POST                 | `/events/:id/changes/:changeId/{apply,discard,undo}`             | Resolve a proposal; choose one action                |
+| POST                 | `/events/:id/transcribe`                                         | Transcribe an `audio` upload                         |
 
 Typical responses include **400** invalid input, **401** missing authentication adapter, **403** rejected origin, **404** missing/unowned resource, **409** conflict, **413** oversized request, **415** unsupported audio, **422** unusable transcript, **429** throttling, and **503** unavailable service.
 
@@ -507,38 +516,39 @@ Typical responses include **400** invalid input, **401** missing authentication 
 
 A short walkthrough for a hackathon pitch or portfolio review:
 
-| Scene | Action | What to highlight |
-| --- | --- | --- |
-| **1 · Brief** | Enter “Wedding in Delhi, February 2027, 250 guests, ₹12 lakh budget.” | Structured extraction and reviewable assumptions |
-| **2 · Plan** | Create the event and open Overview, Budget, and Tasks | Connected planning outputs from one brief |
-| **3 · Change** | Ask “Reduce my budget to ₹10 lakh.” | The saved plan stays unchanged during review |
-| **4 · Approve** | Inspect the differences and apply | Explicit approval and persistent state |
-| **5 · Adapt** | Ask for 350 guests, then eco-friendly planning; review and apply each | Dependent costs, tasks, and risks update |
-| **6 · Undo** | Undo the latest applied proposal before making another edit | Version-checked recovery with conversation retained |
-| **7 · Execute** | Add an accepted guest with a plus-one; add a confirmed expense and a deposit | RSVP party counts and a real persisted ledger |
-| **8 · Verify** | Refresh the page | Data survives reloads |
+| Scene           | Action                                                                       | What to highlight                                   |
+| --------------- | ---------------------------------------------------------------------------- | --------------------------------------------------- |
+| **1 · Brief**   | Enter “Wedding in Delhi, February 2027, 250 guests, ₹12 lakh budget.”        | Structured extraction and reviewable assumptions    |
+| **2 · Plan**    | Create the event and open Overview, Budget, and Tasks                        | Connected planning outputs from one brief           |
+| **3 · Change**  | Ask “Reduce my budget to ₹10 lakh.”                                          | The saved plan stays unchanged during review        |
+| **4 · Approve** | Inspect the differences and apply                                            | Explicit approval and persistent state              |
+| **5 · Adapt**   | Ask for 350 guests, then eco-friendly planning; review and apply each        | Dependent costs, tasks, and risks update            |
+| **6 · Undo**    | Undo the latest applied proposal before making another edit                  | Version-checked recovery with conversation retained |
+| **7 · Execute** | Add an accepted guest with a plus-one; add a confirmed expense and a deposit | RSVP party counts and a real persisted ledger       |
+| **8 · Verify**  | Refresh the page                                                             | Data survives reloads                               |
 
 Use offline mode for a key-free walkthrough of these supported commands. With connected AI, show voice input by recording, stopping, reviewing the transcript, and pressing **Send**. Transcription alone never changes the event.
 
 ## 🔐 Security notes and current boundaries
 
-- **Local demo identity:** `DEMO_MODE=true` shares a demo user. Do not expose it publicly. Setting it to `false` fails closed until a verified session provider is integrated in [lib/auth.ts](lib/auth.ts).
+- **Authentication:** public deployments use Google sign-in with verified email and a Google-subject user ID. Shared demo mode is local-only and rejected on Vercel. Sessions expire after seven days; users can sign out from the account menu.
 - **Server-side credentials:** AI keys stay on the server. `.env`, local database data, dependencies, and build outputs are excluded from Git. Example database credentials are development-only.
-- **Request controls:** handlers validate inputs, check ownership, reject mismatched supplied origins, and apply per-process mutation throttling. These controls are not a substitute for deployment hardening.
+- **Request controls:** handlers validate inputs, check ownership, reject mismatched origins (and missing origins outside demo mode), and apply shared PostgreSQL mutation throttling. These controls are not a substitute for deployment hardening.
 - **Change safety:** proposals use server-owned snapshots and version checks; apply and undo reject stale proposals. This does not provide full stale-browser-form protection for manual edits.
 - **AI data boundary:** planning state and conversation can be sent to the provider. Guest contact records and the expense ledger are not included in the dedicated planning state, but any sensitive information typed into chat is still chat content.
-- **Voice privacy:** recording starts only on request, stops automatically after 60 seconds, and uploads are limited to 8 MB. EventIQ does not persist raw audio; submitted transcript text becomes ordinary conversation data. Provider data handling still applies.
+- **Voice privacy:** recording starts only on request, stops automatically after 60 seconds, and uploads are limited to 4 MiB. EventIQ does not persist raw audio; submitted transcript text becomes ordinary conversation data. Provider data handling still applies.
 - **Planning limits:** cost estimates are illustrative heuristics, not supplier quotes or live currency conversions. Amounts use whole currency units. No invitations, bookings, or payments are sent.
-- **Operational limits:** throttling resets on restart and is not distributed. Calendar planning currently uses UTC-based “today”; the header clock's selected zone affects only its display. Additional concurrency, accessibility, device, and load testing remains appropriate before public launch.
+- **Operational limits:** shared database throttling limits mutations and AI requests per user; it is not a provider spending cap. Calendar planning currently uses UTC-based “today”; the header clock's selected zone affects only its display. Additional concurrency, accessibility, device, and load testing remains appropriate before public launch.
 
 ## 🛣 Future roadmap
 
 These are proposed improvements, not currently shipped capabilities.
 
-- [ ] Integrate verified authentication and multi-user workspaces.
+- [x] Integrate Google sign-in and separate user workspaces.
 - [ ] Extend client-version checks to manual edits and guard against late event-switch responses.
 - [ ] Make event-date and payment-date rules explicitly time-zone-aware.
-- [ ] Add distributed rate limiting, monitoring, backup procedures, and CI checks.
+- [x] Add shared PostgreSQL request limits for serverless instances.
+- [ ] Add monitoring, backup procedures, and CI checks.
 - [ ] Connect verified supplier discovery and quote comparison.
 - [ ] Support multi-day events, reminders, and calendar exports.
 - [ ] Add attachments, invoice workflows, and richer expense reporting.

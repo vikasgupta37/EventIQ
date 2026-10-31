@@ -22,7 +22,6 @@ import {
   Leaf,
   X,
   Menu,
-  MoreHorizontal,
   Clock,
   Trash2,
   Pencil,
@@ -40,6 +39,7 @@ import ChangeReview from "./change-review";
 import AppearanceSelect from "./appearance";
 import CelebrationArt from "./celebration-art";
 import LiveClock from "./live-clock";
+import AccountMenu, { type WorkspaceAccount } from "./account-menu";
 const nav = [
   ["dashboard", "Overview", LayoutDashboard],
   ["planner", "AI Planner", Sparkles],
@@ -80,7 +80,13 @@ function Badge({
 }) {
   return <span className={`badge ${color}`}>{children}</span>;
 }
-export default function Workspace({ section }: { section: string }) {
+export default function Workspace({
+  section,
+  account = { name: "Demo Planner", email: "demo@eventiq.local", demo: true },
+}: {
+  section: string;
+  account?: WorkspaceAccount;
+}) {
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [state, setState] = useState<EventState | null>(null);
   const [mode, setMode] = useState("demo");
@@ -90,7 +96,7 @@ export default function Workspace({ section }: { section: string }) {
   const [notice, setNotice] = useState("");
   const [mobile, setMobile] = useState(false);
   const [notifications, setNotifications] = useState(false);
-  const [profile, setProfile] = useState(false);
+
   const [message, setMessage] = useState("");
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [speechRequest, setSpeechRequest] = useState<{
@@ -410,21 +416,7 @@ export default function Workspace({ section }: { section: string }) {
               Create an event <Plus size={15} />
             </Link>
           </div>
-          <button className="user-button" onClick={() => setProfile(!profile)}>
-            <span className="avatar">DP</span>
-            <span>
-              <b>Demo Planner</b>
-              <small>Personal workspace</small>
-            </span>
-            <MoreHorizontal size={18} />
-          </button>
-          {profile && (
-            <div className="profile-popover">
-              <b>Local demo workspace</b>
-              <p>Changes are saved to PostgreSQL. No sign-in required.</p>
-              <Link href="/">Visit EventIQ home</Link>
-            </div>
-          )}
+          <AccountMenu account={account} />
         </div>
       </aside>
       {mobile && (
@@ -464,7 +456,9 @@ export default function Workspace({ section }: { section: string }) {
               <Bell size={19} />
               {!!state?.risks.length && <i />}
             </button>
-            <span className="avatar small">DP</span>
+            <span className="avatar small" title={account.name}>
+              {account.name[0]?.toUpperCase()}
+            </span>
           </div>
           {notifications && (
             <div className="notifications">

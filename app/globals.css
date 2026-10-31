@@ -3090,3 +3090,19 @@ td small {
     grid-template-columns: 1fr;
   }
 }
+
+.signin-card {
+  max-width: 540px;
+  margin-inline: auto;
+  display: grid;
+  gap: 20px;
+  text-align: center;
+  justify-items: center;
+}
+.signin-card .button {
+  width: 100%;
+  justify-content: center;
+}
+.signin-card p {
+  line-height: 1.6;
+}

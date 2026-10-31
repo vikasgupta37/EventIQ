@@ -219,3 +219,10 @@ model PlanChange {
   createdAt DateTime @default(now())
   @@index([eventId, createdAt])
 }
+
+model RequestRateLimit {
+  key String @id
+  count Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}

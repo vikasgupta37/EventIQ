@@ -1,4 +1,6 @@
 import Workspace from "@/components/workspace";
+import { requireUser } from "@/lib/require-user";
+import { demoEnabled } from "@/lib/auth";
 import { notFound } from "next/navigation";
 export default async function Page({
   params,
@@ -22,5 +24,12 @@ export default async function Page({
     ].includes(section)
   )
     notFound();
-  return <Workspace key={section} section={section} />;
+  const user = await requireUser();
+  return (
+    <Workspace
+      key={section}
+      section={section}
+      account={{ name: user.name, email: user.email, demo: demoEnabled() }}
+    />
+  );
 }

@@ -1,5 +1,11 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Clock3, ChevronDown, Globe2 } from "lucide-react";
 import {
   availableTimeZones,
@@ -10,25 +16,42 @@ import {
   validTimeZone,
   zoneLabel,
 } from "@/lib/clock";
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 export default function LiveClock() {
-  const [now, setNow] = useState<Date | null>(null);
-  const [preference, setPreference] = useState("system");
-  const [device, setDevice] = useState("UTC");
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    clientSnapshot,
+    serverSnapshot,
+  );
+  if (!hydrated)
+    return (
+      <div className="live-clock">
+        <span className="live-clock-trigger">Live local time</span>
+      </div>
+    );
+  return <ClientClock />;
+}
+function ClientClock() {
+  const [now, setNow] = useState<Date>(() => new Date());
+  const [preference, setPreference] = useState(() => {
+    try {
+      return validTimeZone(localStorage.getItem(timeZoneKey));
+    } catch {
+      return "system";
+    }
+  });
+  const [device, setDevice] = useState(deviceTimeZone);
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const select = useRef<HTMLSelectElement>(null);
   useEffect(() => {
-    try {
-      setPreference(validTimeZone(localStorage.getItem(timeZoneKey)));
-    } catch {
-      /* Keep device time when storage is unavailable. */
-    }
     const tick = () => {
       setNow(new Date());
       setDevice(deviceTimeZone());
     };
-    tick();
     const interval = window.setInterval(tick, 1000);
     const sync = (event: StorageEvent) => {
       if (event.key === timeZoneKey || event.key === null)

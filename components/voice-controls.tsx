@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Square, Volume2, VolumeX, X } from "lucide-react";
+import { MAX_AUDIO_BYTES } from "@/lib/voice-limits";
 
 type Props = {
   eventId: string;
@@ -148,7 +149,7 @@ export default function VoiceControls({
         if (e.data.size) {
           bytes += e.data.size;
           chunks.push(e.data);
-          if (bytes > 8 * 1024 * 1024) {
+          if (bytes > MAX_AUDIO_BYTES) {
             cancel();
             setError(
               "Recording is too large. Please record a shorter message.",

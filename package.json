@@ -3,9 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "build:vercel": "node scripts/vercel-build.mjs",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -20,6 +25,7 @@
     "dotenv": "^17.2.0",
     "lucide-react": "^0.468.0",
     "next": "16.4.3",
+    "next-auth": "4.24.15",
     "openai": "^6.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

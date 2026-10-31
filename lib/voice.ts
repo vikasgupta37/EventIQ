@@ -1,7 +1,8 @@
 import { AppError } from "./auth";
 import { aiClient, hasAI } from "./agent/extract";
 
-export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+import { MAX_AUDIO_BYTES } from "./voice-limits";
+export { MAX_AUDIO_BYTES } from "./voice-limits";
 const formats: Record<string, string> = {
   "audio/webm": "webm",
   "video/webm": "webm",
@@ -62,7 +63,7 @@ export async function readAudioUpload(request: Request): Promise<File> {
   if (!(audio instanceof File) || audio.size === 0)
     throw new AppError(400, "Record some speech before transcribing.");
   if (audio.size > MAX_AUDIO_BYTES)
-    throw new AppError(413, "Recording exceeds the 8 MB limit.");
+    throw new AppError(413, "Recording exceeds the 4 MB limit.");
   const mime = audio.type.split(";")[0].toLowerCase();
   const extension = formats[mime];
   if (!extension)

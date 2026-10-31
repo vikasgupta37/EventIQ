@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { currentUser, AppError } from "@/lib/auth";
+import { currentUser, AppError, demoEnabled } from "@/lib/auth";
+import { limitRequests } from "@/lib/rate-limit";
+import { readJsonBody } from "@/lib/request-body";
 import { db } from "@/lib/db/client";
 import {
   createEvent,
@@ -24,7 +26,7 @@ import * as management from "@/lib/db/management";
 import { listChanges, resolveChange } from "@/lib/db/changes";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const buckets = new Map<string, { count: number; reset: number }>();
+export const maxDuration = 300;
 async function handler(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -41,21 +43,19 @@ async function handler(
         `${request.nextUrl.protocol}//${request.headers.get("host") ?? request.nextUrl.host}`;
       if (origin && origin !== expectedOrigin)
         throw new AppError(403, "Cross-origin changes are not allowed.");
-      const bucket = buckets.get(user.id);
-      if (!bucket || bucket.reset < Date.now())
-        buckets.set(user.id, { count: 1, reset: Date.now() + 60000 });
-      else if (++bucket.count > 60)
-        throw new AppError(429, "Too many requests. Please wait a minute.");
+      if (!demoEnabled() && !origin)
+        throw new AppError(403, "An Origin header is required for changes.");
+      await limitRequests(user.id);
+      if (
+        ["extract", "chat", "plan", "transcribe"].includes(
+          section ?? resource,
+        ) ||
+        (resource === "events" && !id) ||
+        section === "budget"
+      )
+        await limitRequests(user.id, "ai", 10);
     }
-    const body = async () => {
-      const text = await request.text();
-      if (text.length > 24000) throw new AppError(413, "Request is too large.");
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new AppError(400, "Invalid JSON.");
-      }
-    };
+    const body = () => readJsonBody(request);
     if (resource === "health" && method === "GET")
       return NextResponse.json({ ok: true, mode: hasAI() ? "ai" : "demo" });
     if (resource === "extract" && method === "POST") {
