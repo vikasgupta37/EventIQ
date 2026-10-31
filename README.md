@@ -5,6 +5,12 @@
   <p>Turn an event idea into a living plan—with budgets, tasks, guests,<br />and an AI planner whose changes stay in your control.</p>
 
   <p>
+    <a href="https://eventiq-ashy.vercel.app"><img src="https://img.shields.io/badge/DEMO-LIVE%20NOW-FF6633?style=for-the-badge&amp;logo=icloud&amp;logoColor=white&amp;labelColor=555555" alt="Demo — Live Now" /></a>
+    &nbsp;
+    <a href="https://github.com/vikasgupta37/EventIQ"><img src="https://img.shields.io/badge/PROJECT-REPOSITORY-85C900?style=for-the-badge&amp;logo=github&amp;logoColor=white&amp;labelColor=555555" alt="Project — Repository" /></a>
+  </p>
+
+  <p>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-225447?style=flat-square" alt="License: MIT" /></a>
     <img src="https://img.shields.io/badge/Next.js-16-111827?style=flat-square&logo=nextdotjs" alt="Next.js 16" />
     <img src="https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white" alt="React 19" />
