@@ -147,3 +147,19 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# EventIQ local workspace
+node_modules/
+.pnpm-store/
+.next/
+.next-production/
+.env*
+!.env.example
+.data/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+artifacts/
+eventiq-preview.png
+Thumbs.db
+.DS_Store

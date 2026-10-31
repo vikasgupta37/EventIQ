@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  events Event[]
+}
+model Event {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  name String
+  eventType String
+  date String
+  location String
+  guestCount Int
+  budget Int
+  currency String @default("INR")
+  theme String
+  priorities String[]
+  sustainable Boolean @default(false)
+  venueCapacity Int?
+  suppressedTaskIds String[] @default([])
+  budgetOverrides Json @default("{}")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  preferences EventPreference[]
+  budgetPlan Budget?
+  tasks Task[]
+  timeline TimelineItem[]
+  vendors VendorCategory[]
+  recommendations Recommendation[]
+  risks Risk[]
+  conversation Conversation?
+  actions AgentAction[]
+  guests Guest[]
+  expenses Expense[]
+  changes PlanChange[]
+  @@index([userId])
+}
+model EventPreference {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  value String
+}
+model Budget {
+  id String @id @default(cuid())
+  eventId String @unique
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contingency Int
+  categories BudgetCategory[]
+}
+model BudgetCategory {
+  id String @id
+  budgetId String
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  name String
+  allocated Int
+  estimated Int
+  priority String
+  reasoning String
+}
+model Task {
+  id String @id
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title String
+  description String
+  category String
+  priority String
+  status String
+  dueDate String
+  estimatedCost Int
+  owner String
+  dependencies String[]
+  generated Boolean @default(true)
+  customized Boolean @default(false)
+  @@index([eventId])
+}
+model TimelineItem {
+  id String @id
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title String
+  category String
+  dueDate String
+  priority String
+  status String
+  dependencies String[]
+}
+model VendorCategory {
+  id String @id
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name String
+  status String
+  estimatedCost Int
+  bookingDeadline String
+  selectionCriteria String[]
+  questions String[]
+  notes String
+  vendors Vendor[]
+}
+model Vendor {
+  id String @id @default(cuid())
+  categoryId String
+  category VendorCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name String
+  contact String
+  sourceUrl String?
+  confirmedCost Int?
+}
+model Recommendation {
+  id String @id
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category String
+  idea String
+  reason String
+  impact String
+  estimatedCost Int
+  priority String
+}
+model Risk {
+  id String @id
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title String
+  severity String
+  probability String
+  impact String
+  reason String
+  action String
+}
+model Conversation {
+  id String @id @default(cuid())
+  eventId String @unique
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  messages ConversationMessage[]
+}
+model ConversationMessage {
+  id String @id @default(cuid())
+  conversationId String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role String
+  content String
+  createdAt DateTime @default(now())
+}
+model AgentAction {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tool String
+  summary String
+  createdAt DateTime @default(now())
+}
+model Guest {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name String
+  email String
+  phone String
+  rsvp String @default("Pending")
+  plusOnes Int @default(0)
+  dietary String
+  tableName String
+  notes String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([eventId])
+}
+model Expense {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title String
+  category String
+  supplier String
+  amount Int
+  status String @default("Quoted")
+  dueDate String?
+  notes String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+  @@index([eventId])
+}
+model Payment {
+  id String @id @default(cuid())
+  expenseId String
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  amount Int
+  paidOn String
+  reference String
+  createdAt DateTime @default(now())
+}
+model PlanChange {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  status String @default("Pending")
+  baseVersion Int
+  appliedVersion Int?
+  request String
+  explanation String
+  before Json
+  after Json
+  differences Json
+  actions Json
+  createdAt DateTime @default(now())
+  @@index([eventId, createdAt])
+}

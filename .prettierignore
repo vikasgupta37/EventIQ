@@ -1,0 +1,8 @@
+node_modules
+.pnpm-store
+.next
+.next-production
+.data
+pnpm-lock.yaml
+prisma/migrations
+next-env.d.ts
