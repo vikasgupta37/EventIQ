@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eventSchema, taskSchema, dateSchema } from "./validation";
+import { validateTaskGraph } from "./tasks";
 const id = z.string().min(1).max(160);
 const text = z.string().max(6000);
 const strings = z.array(z.string().max(1000)).max(40);
@@ -114,4 +115,38 @@ export const eventStateSchema = eventSchema
       )
       .max(100),
   })
-  .strip();
+  .strip()
+  .superRefine((state, context) => {
+    const issue = (path: string, message: string) =>
+      context.addIssue({ code: "custom", path: [path], message });
+    if (
+      state.categories.reduce((sum, category) => sum + category.allocated, 0) +
+        state.contingency !==
+      state.budget
+    )
+      issue(
+        "categories",
+        "Allocations and contingency must equal the event budget.",
+      );
+    for (const key of [
+      "categories",
+      "vendors",
+      "timeline",
+      "recommendations",
+      "risks",
+    ] as const) {
+      if (new Set(state[key].map((item) => item.id)).size !== state[key].length)
+        issue(key, "Record IDs must be unique.");
+    }
+    for (const key of ["categories", "vendors"] as const) {
+      if (
+        new Set(state[key].map((item) => item.name)).size !== state[key].length
+      )
+        issue(key, "Category names must be unique.");
+    }
+    try {
+      validateTaskGraph(state.tasks, state.date);
+    } catch (error) {
+      issue("tasks", (error as Error).message);
+    }
+  });

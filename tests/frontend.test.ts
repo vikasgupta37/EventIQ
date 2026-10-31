@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import Workspace from "../components/workspace";
 import CreateEvent from "../components/create-event";
 import { create_event_plan } from "../lib/engines";
@@ -11,15 +12,6 @@ import type { PlanChange } from "../lib/management";
 const mocks = vi.hoisted(() => ({ api: vi.fn(), push: vi.fn() }));
 vi.mock("../components/api", () => ({ api: mocks.api }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) =>
-    createElement("div", {}, children),
-  PieChart: () =>
-    createElement("div", { "aria-label": "Budget allocation chart" }),
-  Pie: () => null,
-  Cell: () => null,
-  Tooltip: () => null,
-}));
 const input: EventInput = {
   name: "Test celebration",
   eventType: "Wedding",
@@ -116,6 +108,73 @@ afterEach(() => {
   cleanup();
 });
 describe("Frontend state and interactions", () => {
+  it.each(["dashboard", "planner", "budget"])(
+    "has no automated semantic accessibility violations on %s",
+    async (section) => {
+      const { container } = render(createElement(Workspace, { section }));
+      await waitFor(() =>
+        expect(screen.queryByText("Bringing your plans together…")).toBeNull(),
+      );
+      // JSDOM has no layout engine; contrast needs a real-browser review.
+      const results = await axe.run(container, {
+        rules: { "color-contrast": { enabled: false } },
+      });
+      expect(
+        results.violations.map((v) => ({
+          id: v.id,
+          targets: v.nodes.map((n) => n.target),
+        })),
+      ).toEqual([]);
+    },
+  );
+  it("opens keyboard navigation, wraps focus and returns focus on Escape", async () => {
+    const user = userEvent.setup();
+    render(createElement(Workspace, { section: "dashboard" }));
+    await screen.findByRole("heading", { name: "Test celebration" });
+    const trigger = screen.getByRole("button", { name: "Open navigation" });
+    await user.click(trigger);
+    const close = screen.getByRole("button", { name: "Close navigation" });
+    expect(document.activeElement).toBe(close);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    await user.tab({ shift: true });
+    expect(
+      screen
+        .getByLabelText("Workspace navigation")
+        .contains(document.activeElement),
+    ).toBe(true);
+    await user.keyboard("{Escape}");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+  it("keeps task-editor focus inside the dialog and restores the trigger", async () => {
+    const user = userEvent.setup();
+    render(createElement(Workspace, { section: "tasks" }));
+    const trigger = await screen.findByRole("button", { name: "Add task" });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Save task" }),
+    );
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+  it.each(["Birthday", "Wedding"])(
+    "loads a reviewable %s example without creating records",
+    async (type) => {
+      render(createElement(CreateEvent));
+      await userEvent.click(
+        screen.getByRole("button", { name: `${type} example` }),
+      );
+      expect(
+        (screen.getByLabelText("Event type") as HTMLSelectElement).value,
+      ).toBe(type);
+      expect(screen.getByText(/This is sample data/)).toBeTruthy();
+      expect(mocks.api).not.toHaveBeenCalled();
+    },
+  );
   it("renders the backend event dashboard", async () => {
     render(createElement(Workspace, { section: "dashboard" }));
     expect(

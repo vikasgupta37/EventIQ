@@ -3,6 +3,7 @@ import "./globals.css";
 import "./theme.css";
 import "./appearance.css";
 import "./clock.css";
+import "./accessibility.css";
 import { AppearanceSync } from "@/components/appearance";
 import { appearanceBootstrap } from "@/lib/appearance";
 export const metadata: Metadata = {

@@ -62,40 +62,45 @@ beforeEach(() => {
   });
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ text: "Increase guests to 350." }),
-      }),
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: "Increase guests to 350." }),
+    }),
   );
 });
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 describe("Voice controls", () => {
-  it("records on demand, stops microphone and returns a reviewable transcript", async () => {
-    render(createElement(VoiceControls, props()));
-    expect(getUserMedia).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Start voice input" }),
-    );
-    await screen.findByRole("button", { name: "Stop recording" });
-    await userEvent.click(
-      screen.getByRole("button", { name: "Stop recording" }),
-    );
-    await waitFor(() =>
-      expect(transcribed).toHaveBeenCalledWith("Increase guests to 350."),
-    );
-    expect(stopped).toHaveBeenCalled();
-    expect(screen.getByText(/Review it, then press Send/)).toBeTruthy();
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/events/demo/transcribe",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(busy).toHaveBeenLastCalledWith(false);
-  });
+  it.each(["browser", "database"])(
+    "records on demand and returns a reviewable transcript in %s mode",
+    async (mode) => {
+      vi.stubEnv("NEXT_PUBLIC_STORAGE_MODE", mode);
+      render(createElement(VoiceControls, props()));
+      expect(getUserMedia).not.toHaveBeenCalled();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Start voice input" }),
+      );
+      await screen.findByRole("button", { name: "Stop recording" });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Stop recording" }),
+      );
+      await waitFor(() =>
+        expect(transcribed).toHaveBeenCalledWith("Increase guests to 350."),
+      );
+      expect(stopped).toHaveBeenCalled();
+      expect(screen.getByText(/Review it, then press Send/)).toBeTruthy();
+      expect(fetch).toHaveBeenCalledWith(
+        mode === "browser"
+          ? "/api/demo/transcribe"
+          : "/api/events/demo/transcribe",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(busy).toHaveBeenLastCalledWith(false);
+    },
+  );
   it("cancels recording without uploading", async () => {
     render(createElement(VoiceControls, props()));
     await userEvent.click(

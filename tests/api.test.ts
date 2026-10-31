@@ -21,6 +21,16 @@ async function request(path: string, method = "GET", body?: unknown) {
     { params: Promise.resolve({ path: path.split("/") }) },
   );
 }
+async function fixture() {
+  const response = await request("events", "POST", {
+    ...extractDemo("Wedding in Delhi February 2027 250 guests ₹12 lakh").event,
+    name: "Independent API test fixture",
+  });
+  expect(response.status).toBe(201);
+  const state: EventState = await response.json();
+  ids.push(state.id);
+  return state;
+}
 afterAll(async () => {
   if (ids.length)
     await db.event.deleteMany({
@@ -142,8 +152,8 @@ describe("PostgreSQL API integration", () => {
     expect(r.status).toBe(403);
   });
   it("enforces ownership and rejects stale updates", async () => {
-    const s = await get_event_state(ids[0], "demo-user");
-    await expect(get_event_state(ids[0], "another-user")).rejects.toThrow(
+    const s = await fixture();
+    await expect(get_event_state(s.id, "another-user")).rejects.toThrow(
       "Event not found",
     );
     await saveState(s, "demo-user");
@@ -152,7 +162,7 @@ describe("PostgreSQL API integration", () => {
     );
   });
   it("blocks deadlines beyond the event and unknown dependencies", async () => {
-    const id = ids[0];
+    const { id } = await fixture();
     expect(
       (
         await request(`events/${id}/tasks`, "POST", {
@@ -177,6 +187,7 @@ describe("PostgreSQL API integration", () => {
         .event,
       name: "Delete test",
     });
+    expect(r.status).toBe(201);
     const s: EventState = await r.json();
     ids.push(s.id);
     expect((await request(`events/${s.id}`, "DELETE")).status).toBe(204);

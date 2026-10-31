@@ -49,6 +49,23 @@ As plans change, ask the AI planner for help. EventIQ calculates the consequence
 
 **Current scope:** a public demo with no sign-in and no connected database. Events, guests, expenses, and history stay in the current browser. Export backups before clearing site data; plans do not sync across devices. AI requests send event details and recent chat for processing. Connected AI and transcription are optional. The optional PostgreSQL / Google sign-in edition remains in the source. Payment entries are records of money already paid; supplier search, booking, and payment processing are not connected.
 
+## Evaluation evidence
+
+The original brief requires database-backed persistence. **Use the PostgreSQL edition to evaluate that requirement.** The hosted browser demo is a separate, account-free demonstration; it does not establish cloud persistence or cross-device access.
+
+| Criterion                   | Implemented evidence                                                                                                                                          | How to verify                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Code quality                | Strict TypeScript, typed tools, separated engines/storage/validation, reusable budget chart                                                                   | `pnpm lint`, `pnpm typecheck`; inspect `lib/` and `components/budget-chart.tsx`                                            |
+| Security                    | Ownership checks, version-checked updates, bounded JSON/audio, origin checks, validated AI drafts and backup budgets/task graphs, deployment security headers | `tests/auth.test.ts`, `tests/request-body.test.ts`, `tests/state-integrity.test.ts`, `tests/api.test.ts`                   |
+| Efficiency                  | Small SVG chart replaces the chart runtime; deterministic arithmetic; bounded model loops and chat context; burst-limit cleanup once per time window          | `components/budget-chart.tsx`, `lib/agent/orchestrator.ts`, `lib/server/browser-api.ts`                                    |
+| Testing                     | Unit/UI/agent/browser-storage tests plus a PostgreSQL integration suite; CI provisions a separate PostgreSQL service                                          | `pnpm check`, `pnpm test:db`, `.github/workflows/quality.yml`                                                              |
+| Accessibility               | Skip navigation, named landmarks and controls, keyboard focus wrapping/Escape/restore, text alternatives for chart values, reduced-motion styles              | Keyboard tests and axe-core semantic checks in `tests/frontend.test.ts`; manually verify contrast, zoom and screen readers |
+| Problem statement alignment | Reviewable event extraction; budget → guest count → sustainability changes; tasks, timeline, services, recommendations, risks; proposal review and undo       | Follow the demo walkthrough below using the database edition; try the editable Birthday and Wedding examples               |
+
+**Reproduce the database edition:** copy `.env.example` to `.env`, set `NEXT_PUBLIC_STORAGE_MODE=database`, keep `DEMO_MODE=true` for localhost only, and configure `DATABASE_URL` for an isolated UTF-8 PostgreSQL database. Start `pnpm db:local` in another terminal if using the bundled local database. Run `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, then `pnpm dev`. Tests must point to a separate database, not an event workspace. Public database deployments require Google sign-in and `DEMO_MODE=false`; see [deployment settings](docs/deployment.md).
+
+**Submission:** submit the public repository URL, not an individual file or private link. `pnpm check:submission` verifies a source snapshot below 10 MB and rejects common credential/media artifacts. It does not measure remote Git history or guarantee the absence of all secrets. Keep the demo video outside Git and submit an accessible YouTube/Drive link separately. No score or ranking is claimed.
+
 ## 🎯 Problem statement
 
 Planning an event means coordinating decisions that constantly affect one another. A larger guest list changes catering costs and venue requirements. A smaller budget changes priorities. A new date shifts deadlines.
@@ -263,17 +280,17 @@ The broader [typed service surface](lib/tools/index.ts) includes extraction, bud
 
 ## 🧰 Tech stack
 
-| Layer          | Technology                                     | Role                                                               |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
-| Application    | Next.js 16.4.3, React 19, TypeScript           | App Router, route handlers, typed UI and domain code               |
-| Presentation   | CSS, Lucide React, Recharts                    | Responsive styling, icons, and budget visualization                |
-| Authentication | None in public demo; optional NextAuth / Google | Public access; sign-in retained for the database edition |
-| Validation     | Zod 4                                          | Request schemas and model-tool argument validation                 |
-| Persistence | Browser localStorage + JSON backups | Local plans and history; optional PostgreSQL / Prisma edition |
-| AI             | OpenAI SDK                                     | Structured extraction, Responses tool calling, and transcription   |
-| Voice          | MediaRecorder, browser speech synthesis        | On-demand capture and optional spoken replies                      |
-| Tests          | Vitest, Testing Library, jsdom                 | Domain, mocked agent, UI, and API/database tests                   |
-| Local tooling | pnpm, tsx; optional PostgreSQL tooling | Development scripts and optional database tests |
+| Layer          | Technology                                      | Role                                                             |
+| -------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
+| Application    | Next.js 16.4.3, React 19, TypeScript            | App Router, route handlers, typed UI and domain code             |
+| Presentation   | CSS, Lucide React, Recharts                     | Responsive styling, icons, and budget visualization              |
+| Authentication | None in public demo; optional NextAuth / Google | Public access; sign-in retained for the database edition         |
+| Validation     | Zod 4                                           | Request schemas and model-tool argument validation               |
+| Persistence    | Browser localStorage + JSON backups             | Local plans and history; optional PostgreSQL / Prisma edition    |
+| AI             | OpenAI SDK                                      | Structured extraction, Responses tool calling, and transcription |
+| Voice          | MediaRecorder, browser speech synthesis         | On-demand capture and optional spoken replies                    |
+| Tests          | Vitest, Testing Library, jsdom                  | Domain, mocked agent, UI, and API/database tests                 |
+| Local tooling  | pnpm, tsx; optional PostgreSQL tooling          | Development scripts and optional database tests                  |
 
 ## ☁️ Deploy on Vercel
 
@@ -430,9 +447,9 @@ pnpm build
 | API and database | Persistence, ownership, stale-state checks, guests, payments, proposal lifecycle                   |
 | UI               | Creation, chat approval, task actions, expenses, voice controls, appearance, and clock preferences |
 
-**Default tests:** `pnpm test` runs the database-free unit, UI, agent, browser-storage, and stateless API suites. Browser-storage tests cover reloads, backups, storage failures, guest and payment validation, and proposal conflicts.
+**Default tests:** `pnpm test` runs the database-free unit, UI, agent, browser-storage, and stateless API suites. Browser-storage tests cover reloads, backups, storage failures, guest and payment validation, and proposal conflicts. `pnpm check` also runs lint, type checking and the submission check. The accessibility suite uses axe-core in JSDOM with color-contrast checks disabled because JSDOM has no layout engine; a clean result is not a WCAG certification.
 
-**Optional database tests:** run `pnpm test:db` with `NEXT_PUBLIC_STORAGE_MODE=database`, `DEMO_MODE=true`, a dedicated test database, and applied migrations. They create disposable events and clean up their own records.
+**Database tests:** run `pnpm test:db` with `DATABASE_URL` pointing to a dedicated UTF-8 test database and applied migrations. Its test configuration selects database mode and deterministic planning, independent of the browser-demo setting. Tests create disposable events and clean up their own records. CI runs both suites and builds both storage editions without production credentials.
 
 To run only the unit and mocked UI suites:
 
@@ -515,7 +532,7 @@ All routes below are prefixed with `/api`. In the database edition, resource acc
 | PATCH / DELETE       | `/events/:id/expenses/:expenseId`                                | Edit / delete an expense                             |
 | POST                 | `/events/:id/expenses/:expenseId/payments`                       | Record a payment                                     |
 | DELETE               | `/events/:id/expenses/:expenseId/payments/:paymentId`            | Remove a payment record                              |
-| GET                  | `/events/:id/changes`                                            | 20 local previews; 50 in database edition                         |
+| GET                  | `/events/:id/changes`                                            | 20 local previews; 50 in database edition            |
 | POST                 | `/events/:id/changes/:changeId/{apply,discard,undo}`             | Resolve a proposal; choose one action                |
 | POST                 | `/events/:id/transcribe`                                         | Transcribe an `audio` upload                         |
 

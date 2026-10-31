@@ -93,6 +93,17 @@ describe("Public browser persistence", () => {
     );
     await expect(importBrowserData(backup)).rejects.toThrow("already exists");
   });
+  it("rejects an inconsistent imported budget without replacing saved data", async () => {
+    await create();
+    const before = exportBrowserData();
+    const imported = JSON.parse(before);
+    imported.events[0].state.id = "different-event";
+    imported.events[0].state.categories[0].allocated += 1;
+    await expect(importBrowserData(JSON.stringify(imported))).rejects.toThrow(
+      "not a valid",
+    );
+    expect(exportBrowserData()).toBe(before);
+  });
   it("enforces task dependencies and leaves invalid edits unsaved", async () => {
     const event = await create();
     const dependent = event.tasks.find((t) => t.dependencies.length)!;

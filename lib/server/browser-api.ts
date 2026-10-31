@@ -8,10 +8,13 @@ import { runAgent } from "../agent/orchestrator";
 import { readAudioUpload, transcribeAudio } from "../voice";
 // Best-effort burst control per warm function instance; not a distributed quota.
 const buckets = new Map<string, { window: number; count: number }>();
+let bucketWindow = -1;
 export function limitPublicRequests(ip: string, now = Date.now()) {
   const window = Math.floor(now / 60000);
-  for (const [key, value] of buckets)
-    if (value.window !== window) buckets.delete(key);
+  if (bucketWindow !== window) {
+    buckets.clear();
+    bucketWindow = window;
+  }
   const bucket = buckets.get(ip);
   if (bucket && bucket.count >= 10)
     throw new AppError(
@@ -86,7 +89,10 @@ export async function browserHandler(
     if (error instanceof AppError)
       return NextResponse.json(
         { error: error.message },
-        { status: error.status },
+        {
+          status: error.status,
+          headers: error.status === 429 ? { "Retry-After": "60" } : undefined,
+        },
       );
     return NextResponse.json(
       {

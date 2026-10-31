@@ -64,6 +64,35 @@ describe("Stateless public API", () => {
     expect(result.state.budget).toBe(1000000);
     expect(state.budget).toBe(1200000);
   });
+  it("rejects a tampered budget before invoking planning", async () => {
+    const state = create_event_plan(
+      extractDemo("Wedding in Delhi February 2027 250 guests 12 lakh").event,
+      "tampered",
+    );
+    state.categories[0].allocated += 1000;
+    expect(
+      (await request("demo/plan", { state, message: "What should I do next?" }))
+        .status,
+    ).toBe(400);
+  });
+  it("returns retry guidance after the public burst limit", async () => {
+    const ip = crypto.randomUUID();
+    for (let i = 0; i < 10; i++) limitPublicRequests(ip);
+    const response = await browserHandler(
+      new NextRequest("https://eventiq.example/api/demo/extract", {
+        method: "POST",
+        headers: {
+          origin: "https://eventiq.example",
+          "content-type": "application/json",
+          "x-vercel-forwarded-for": ip,
+        },
+        body: JSON.stringify({ text: "Wedding in Delhi with 250 guests" }),
+      }),
+      { params: Promise.resolve({ path: ["demo", "extract"] }) },
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("60");
+  });
   it("limits bursts within a function instance and releases the next window", () => {
     const ip = crypto.randomUUID();
     for (let i = 0; i < 10; i++) limitPublicRequests(ip, 60000);

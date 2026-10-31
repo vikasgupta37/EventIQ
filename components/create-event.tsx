@@ -8,6 +8,7 @@ import type { EventState } from "@/lib/types";
 import { api } from "./api";
 import BrowserData from "./browser-data";
 import AppearanceSelect from "./appearance";
+import { eventExample } from "@/lib/event-examples";
 const initial: EventInput = {
   name: "",
   eventType: "Wedding",
@@ -66,7 +67,7 @@ export default function CreateEvent() {
     setInput((p) => ({ ...p, [key]: value }));
   }
   return (
-    <div className="create-page">
+    <main className="create-page" id="main-content" tabIndex={-1}>
       <div className="create-toolbar">
         <Link href="/dashboard" className="back">
           <ArrowLeft size={17} /> Back to workspace
@@ -82,16 +83,41 @@ export default function CreateEvent() {
         <p>Bring the idea. We’ll help with the details.</p>
       </div>
       <BrowserData />
+      <section className="example-briefs" aria-label="Example event briefs">
+        <p>Start with an example, then make it yours.</p>
+        <div>
+          {(["Birthday", "Wedding"] as const).map((type) => (
+            <button
+              key={type}
+              className="button secondary small"
+              disabled={busy}
+              onClick={() => {
+                setInput(eventExample(type));
+                setTab("form");
+                setReview(true);
+                setAssumptions([
+                  "This is sample data. Review the date, location, guests and budget before creating your event.",
+                ]);
+                setError("");
+              }}
+            >
+              {type} example
+            </button>
+          ))}
+        </div>
+      </section>
       <div className="create-card">
         <div className="tabs">
           <button
             className={tab === "ai" ? "active" : ""}
+            aria-pressed={tab === "ai"}
             onClick={() => setTab("ai")}
           >
             <Sparkles size={16} /> Describe your event
           </button>
           <button
             className={tab === "form" ? "active" : ""}
+            aria-pressed={tab === "form"}
             onClick={() => setTab("form")}
           >
             Fill in the details
@@ -276,6 +302,6 @@ export default function CreateEvent() {
         )}
       </div>
       <p className="create-footnote">Smarter Planning. Better Celebrations.</p>
-    </div>
+    </main>
   );
 }

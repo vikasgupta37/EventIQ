@@ -1,6 +1,7 @@
 import type { Task } from "./types";
 export function validateTaskGraph(tasks: Task[], eventDate: string) {
   const byId = new Map(tasks.map((t) => [t.id, t]));
+  if (byId.size !== tasks.length) throw new Error("Task IDs must be unique.");
   const visiting = new Set<string>();
   const visited = new Set<string>();
   function visit(task: Task) {

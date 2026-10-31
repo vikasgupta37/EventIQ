@@ -6,3 +6,5 @@ node_modules
 pnpm-lock.yaml
 prisma/migrations
 next-env.d.ts
+artifacts
+coverage

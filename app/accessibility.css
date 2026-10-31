@@ -1,0 +1,46 @@
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 12px 18px;
+  background: var(--card, #fff);
+  color: var(--text, #173f38);
+  border: 2px solid currentColor;
+  border-radius: 8px;
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.mobile-close {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+.donut svg {
+  display: block;
+  max-width: 100%;
+}
+.example-briefs {
+  margin: 22px auto;
+  max-width: 760px;
+}
+.example-briefs p {
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.example-briefs > div {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@media (forced-colors: active) {
+  .button,
+  .badge,
+  .card {
+    border: 1px solid ButtonText;
+  }
+}

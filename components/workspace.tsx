@@ -28,7 +28,7 @@ import {
   History,
   Receipt,
 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import BudgetChart, { budgetColors as colors } from "./budget-chart";
 import type { EventState, Task } from "@/lib/types";
 import { daysUntil, money } from "@/lib/engines";
 import { api } from "./api";
@@ -55,18 +55,6 @@ const nav = [
   ["risks", "Risks & insights", ShieldAlert],
   ["history", "Plan history", History],
 ] as const;
-const colors = [
-  "#167568",
-  "#4c9e8a",
-  "#91c2ad",
-  "#e88e73",
-  "#f0b39a",
-  "#ddbc70",
-  "#708b9e",
-  "#a2b6c2",
-  "#a8b88d",
-  "#d9d7b8",
-];
 type EventSummary = {
   id: string;
   name: string;
@@ -111,6 +99,40 @@ export default function Workspace({
   const [taskEditor, setTaskEditor] = useState<Partial<Task> | null>(null);
   const [settings, setSettings] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
+  const navigation = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobile) return;
+    const panel = navigation.current;
+    const trigger = menuButton.current;
+    const items = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          "a[href],button:not(:disabled),select:not(:disabled)",
+        ) ?? [],
+      ).filter((item) => !item.closest("[hidden]"));
+    items()[0]?.focus();
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobile(false);
+      if (event.key === "Tab") {
+        const controls = items();
+        const first = controls[0],
+          last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      trigger?.focus();
+    };
+  }, [mobile]);
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ block: "nearest" });
   }, [state?.messages.length]);
@@ -325,49 +347,32 @@ export default function Workspace({
   }
   function budgetChart() {
     return (
-      <div className="budget-chart">
-        <div className="donut">
-          <ResponsiveContainer width="100%" height={190}>
-            <PieChart>
-              <Pie
-                data={state?.categories}
-                dataKey="allocated"
-                nameKey="name"
-                innerRadius={65}
-                outerRadius={87}
-                paddingAngle={2}
-                stroke="none"
-              >
-                {state?.categories.map((c, i) => (
-                  <Cell key={c.id} fill={colors[i]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v) => fmt(Number(v))} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="donut-center">
-            <small>Allocated</small>
-            <b>{fmt((state?.budget ?? 0) - (state?.contingency ?? 0))}</b>
-          </div>
-        </div>
-        <div className="chart-legend">
-          {state?.categories.slice(0, 5).map((c, i) => (
-            <div key={c.id}>
-              <span>
-                <i style={{ background: colors[i] }} />
-                {c.name}
-              </span>
-              <b>{fmt(c.allocated)}</b>
-            </div>
-          ))}
-          <small>+ 5 more categories · 10% reserve</small>
-        </div>
-      </div>
+      <BudgetChart
+        categories={state?.categories ?? []}
+        currency={state?.currency ?? "INR"}
+        contingency={state?.contingency ?? 0}
+      />
     );
   }
   return (
     <div className={`app-shell section-${section}`}>
-      <aside className={`sidebar ${mobile ? "open" : ""}`}>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+      <aside
+        ref={navigation}
+        id="workspace-navigation"
+        aria-label="Workspace navigation"
+        className={`sidebar ${mobile ? "open" : ""}`}
+      >
+        {mobile && (
+          <button
+            className="text-button mobile-close"
+            onClick={() => setMobile(false)}
+          >
+            Close navigation <X size={16} />
+          </button>
+        )}
         <Link className="brand" href="/">
           <span className="brand-icon">
             <Sparkles size={21} />
@@ -391,7 +396,7 @@ export default function Workspace({
           </select>
           <ChevronDown size={13} />
         </label>
-        <nav className="side-nav">
+        <nav className="side-nav" aria-label="Planning sections">
           {nav.map(([slug, label, Icon]) => (
             <Link
               key={slug}
@@ -424,7 +429,8 @@ export default function Workspace({
       {mobile && (
         <button
           className="sidebar-overlay"
-          aria-label="Close navigation"
+          aria-label="Dismiss navigation overlay"
+          tabIndex={-1}
           onClick={() => setMobile(false)}
         />
       )}
@@ -433,8 +439,11 @@ export default function Workspace({
           <div>
             <button
               className="icon-button mobile-menu"
+              ref={menuButton}
               onClick={() => setMobile(!mobile)}
               aria-label="Open navigation"
+              aria-expanded={mobile}
+              aria-controls="workspace-navigation"
             >
               <Menu size={20} />
             </button>
@@ -457,6 +466,8 @@ export default function Workspace({
             <button
               className="icon-button notification-button"
               aria-label="Show notifications"
+              aria-expanded={notifications}
+              aria-controls="planning-notifications"
               onClick={() => setNotifications(!notifications)}
             >
               <Bell size={19} />
@@ -467,7 +478,20 @@ export default function Workspace({
             </span>
           </div>
           {notifications && (
-            <div className="notifications">
+            <div
+              className="notifications"
+              id="planning-notifications"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setNotifications(false);
+                  document
+                    .querySelector<HTMLButtonElement>(
+                      '[aria-controls="planning-notifications"]',
+                    )
+                    ?.focus();
+                }
+              }}
+            >
               <b>Planning updates</b>
               {state?.risks.length ? (
                 state.risks.map((r) => (
@@ -486,7 +510,12 @@ export default function Workspace({
             </div>
           )}
         </header>
-        <main className="workspace-main">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="workspace-main"
+          aria-busy={loading}
+        >
           <BrowserData />
           {error && (
             <div className="error" role="alert">
@@ -508,7 +537,7 @@ export default function Workspace({
             </div>
           )}
           {loading ? (
-            <div className="loading">
+            <div className="loading" role="status">
               <span className="spinner" />
               <h2>Bringing your plans together…</h2>
             </div>
@@ -991,7 +1020,11 @@ export default function Workspace({
                         placeholder="A new idea? A change of plans? Let’s talk."
                         rows={2}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
+                          if (
+                            e.key === "Enter" &&
+                            !e.shiftKey &&
+                            !e.nativeEvent.isComposing
+                          ) {
                             e.preventDefault();
                             void send();
                           }
