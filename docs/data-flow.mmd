@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor User
+    participant Browser as React workspace
+    participant API as Next.js API
+    participant Agent as Planner + engines
+    participant DB as PostgreSQL
+    User->>Browser: Reduce the event budget
+    Browser->>API: POST /events/:id/chat
+    API->>DB: Read owned event and current version
+    DB-->>API: EventState and conversation
+    API->>Agent: Run against isolated draft
+    Agent-->>API: Proposed state, explanation, actions
+    API->>DB: Store proposal snapshots and messages
+    API-->>Browser: Unchanged plan + proposal
+    Browser-->>User: Show before / after differences
+    User->>Browser: Apply changes
+    Browser->>API: POST /events/:id/changes/:changeId/apply
+    API->>DB: Check ownership, proposal status and version
+    alt Version matches
+        API->>DB: Transaction: save plan, increment version, mark applied
+        DB-->>API: Updated state
+        API-->>Browser: Refresh saved plan
+    else Event changed
+        API-->>Browser: HTTP 409; request a new proposal
+    end

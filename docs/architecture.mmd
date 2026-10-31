@@ -1,0 +1,26 @@
+flowchart TB
+    UI["Next.js + React workspace"]
+    API["Route handlers /api/*"]
+    GUARD["Identity, ownership, origin checks and Zod validation"]
+    AGENT["Agent orchestrator"]
+    AI["OpenAI Responses API"]
+    DEMO["Offline demo parser"]
+    ENGINE["Deterministic planning engines"]
+    REVIEW["Proposal staging and apply / discard / undo"]
+    REPO["Prisma repositories"]
+    DB[("PostgreSQL")]
+    UI --> API --> GUARD
+    GUARD --> AGENT
+    GUARD -->|"Manual edits and records"| REPO
+    AGENT <-->|"Validated tool calls"| AI
+    AGENT --> DEMO
+    AGENT --> ENGINE
+    DEMO --> ENGINE
+    ENGINE -->|"Existing-event AI draft"| REVIEW
+    REVIEW --> REPO
+    REPO <--> DB
+    REPO -->|"Saved state and proposal metadata"| UI
+    classDef green fill:#e4f2eb,stroke:#225447,color:#163b31
+    classDef gold fill:#fff3d6,stroke:#a77b30,color:#50390f
+    class UI,API,GUARD,ENGINE,REPO green
+    class AI,DEMO,REVIEW gold

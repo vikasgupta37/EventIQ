@@ -1,0 +1,29 @@
+flowchart TD
+    START["Typed request or reviewed voice transcript"]
+    LOAD["Load owned event state"]
+    MODE{"API key configured?"}
+    MODEL["Model chooses a tool or returns an answer"]
+    TOOL["Validate arguments and execute on isolated draft"]
+    OFFLINE["Parse supported offline commands"]
+    DIFF{"Plan differences?"}
+    PROPOSAL["Persist proposal and conversation"]
+    ANSWER["Persist conversation only"]
+    CHOICE{"User reviews proposal"}
+    APPLY["Check version and atomically apply"]
+    DISCARD["Mark proposal discarded"]
+    UNDO["Undo while applied version is still current"]
+    START --> LOAD --> MODE
+    MODE -->|Yes| MODEL
+    MODE -->|No| OFFLINE
+    MODEL -->|"Tool call"| TOOL
+    TOOL -->|"Return tool result; bounded loop"| MODEL
+    MODEL -->|"Final answer"| DIFF
+    OFFLINE --> DIFF
+    DIFF -->|Yes| PROPOSAL --> CHOICE
+    DIFF -->|No| ANSWER
+    CHOICE -->|Apply| APPLY --> UNDO
+    CHOICE -->|Discard| DISCARD
+    classDef green fill:#e4f2eb,stroke:#225447,color:#163b31
+    classDef gold fill:#fff3d6,stroke:#a77b30,color:#50390f
+    class START,LOAD,TOOL,APPLY,ANSWER green
+    class MODE,DIFF,CHOICE,PROPOSAL gold
