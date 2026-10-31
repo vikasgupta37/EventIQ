@@ -9,8 +9,8 @@
     <img src="https://img.shields.io/badge/Next.js-16-111827?style=flat-square&logo=nextdotjs" alt="Next.js 16" />
     <img src="https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white" alt="React 19" />
     <img src="https://img.shields.io/badge/TypeScript-Strict-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="Strict TypeScript" />
-    <img src="https://img.shields.io/badge/PostgreSQL-Prisma-4169e1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL and Prisma" />
-    <img src="https://img.shields.io/badge/Stage-Local_MVP-d4a74f?style=flat-square" alt="Stage: local MVP" />
+    <img src="https://img.shields.io/badge/Storage-Browser-225447?style=flat-square" alt="Browser storage" />
+    <img src="https://img.shields.io/badge/Stage-Public_Demo-d4a74f?style=flat-square" alt="Stage: public demo" />
   </p>
 
   <p>
@@ -38,9 +38,9 @@ As plans change, ask the AI planner for help. EventIQ calculates the consequence
 | ----------------------------- | ------------------------------------------------------------------------------------------------ |
 | **Users**                     | One workspace for planning, RSVPs, costs, and next steps                                         |
 | **Hackathon judges**          | A stateful agent with validated tools, reviewable changes, and undo                              |
-| **Developers and recruiters** | Typed domain logic, relational persistence, transactional updates, and unit/UI/integration tests |
+| **Developers and recruiters** | Typed planning logic, versioned browser persistence, stateless AI, and unit/UI/integration tests |
 
-**Current scope:** a full-stack MVP with Google sign-in for public deployments and an optional local demo mode. Offline demo mode needs no AI key. Connected AI and transcription are optional. Payment entries are records of money already paid; supplier search, booking, and payment processing are not connected.
+**Current scope:** a public demo with no sign-in and no connected database. Events, guests, expenses, and history stay in the current browser. Export backups before clearing site data; plans do not sync across devices. AI requests send event details and recent chat for processing. Connected AI and transcription are optional. The optional PostgreSQL / Google sign-in edition remains in the source. Payment entries are records of money already paid; supplier search, booking, and payment processing are not connected.
 
 ## 🎯 Problem statement
 
@@ -107,13 +107,13 @@ The ledger separates estimated planning costs from confirmed expenses and record
 
 ## 🧭 How EventIQ works
 
-| Step            | User action                                              | System behavior                                                            |
-| --------------- | -------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **1. Describe** | Enter the event type, location, date, guests, and budget | Extracts structured details and lists assumptions                          |
-| **2. Review**   | Correct the brief and create the event                   | Saves the initial plan with budgets, tasks, services, and risks            |
-| **3. Ask**      | Request a change by text or reviewed voice transcript    | Runs tools on a draft and recalculates affected sections                   |
-| **4. Approve**  | Inspect differences and select **Apply changes**         | Checks the event version and commits the approved proposal transactionally |
-| **5. Execute**  | Update tasks, RSVPs, services, and expense records       | Refreshes saved state and relevant planning summaries                      |
+| Step            | User action                                              | System behavior                                                         |
+| --------------- | -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **1. Describe** | Enter the event type, location, date, guests, and budget | Extracts structured details and lists assumptions                       |
+| **2. Review**   | Correct the brief and create the event                   | Saves the initial plan with budgets, tasks, services, and risks         |
+| **3. Ask**      | Request a change by text or reviewed voice transcript    | Runs tools on a draft and recalculates affected sections                |
+| **4. Approve**  | Inspect differences and select **Apply changes**         | Checks the event version and saves the approved proposal in the browser |
+| **5. Execute**  | Update tasks, RSVPs, services, and expense records       | Refreshes saved state and relevant planning summaries                   |
 
 Initial creation and manual form edits save directly. AI changes to existing events use the proposal flow. Read-only answers save conversation messages without changing the plan.
 
@@ -147,35 +147,28 @@ This is an illustrative walkthrough of supported behavior; exact connected-model
 
 ## 🏗 Architecture
 
-The frontend and backend run in the same Next.js application. PostgreSQL is the separate persistence service.
+The public demo stores records in each visitor's browser. Next.js serves the UI and stateless AI endpoints; it does not store event records on a server. The optional database edition is documented separately.
 
 ```mermaid
 flowchart TB
     UI["Next.js + React workspace"]
-    API["Route handlers /api/*"]
-    GUARD["Identity, ownership, origin checks and Zod validation"]
-    AGENT["Agent orchestrator"]
-    AI["OpenAI Responses API"]
-    DEMO["Offline demo parser"]
+    LOCAL[("Browser localStorage")]
     ENGINE["Deterministic planning engines"]
-    REVIEW["Proposal staging and apply / discard / undo"]
-    REPO["Prisma repositories"]
-    DB[("PostgreSQL")]
-    UI --> API --> GUARD
-    GUARD --> AGENT
-    GUARD -->|"Manual edits and records"| REPO
+    REVIEW["Review / apply / discard / undo"]
+    API["Stateless Next.js AI endpoints"]
+    GUARD["Origin check, bounded input, burst limit"]
+    AGENT["Agent orchestrator"]
+    AI["OpenAI Responses / transcription"]
+    BACKUP["Export / import JSON backup"]
+    UI <-->|"Events, guests, expenses, history"| LOCAL
+    UI -->|"Manual changes"| ENGINE --> LOCAL
+    UI -->|"Event plan + recent chat"| API --> GUARD --> AGENT
     AGENT <-->|"Validated tool calls"| AI
-    AGENT --> DEMO
-    AGENT --> ENGINE
-    DEMO --> ENGINE
-    ENGINE -->|"Existing-event AI draft"| REVIEW
-    REVIEW --> REPO
-    REPO <--> DB
-    REPO -->|"Saved state and proposal metadata"| UI
+    AGENT -->|"Draft only"| REVIEW --> UI
+    UI -->|"User-approved changes"| LOCAL
+    LOCAL <--> BACKUP
     classDef green fill:#e4f2eb,stroke:#225447,color:#163b31
-    classDef gold fill:#fff3d6,stroke:#a77b30,color:#50390f
-    class UI,API,GUARD,ENGINE,REPO green
-    class AI,DEMO,REVIEW gold
+    class UI,LOCAL,ENGINE,REVIEW green
 ```
 
 Diagram source: [docs/architecture.mmd](docs/architecture.mmd).
@@ -185,33 +178,24 @@ Diagram source: [docs/architecture.mmd](docs/architecture.mmd).
 ```mermaid
 flowchart TD
     START["Typed request or reviewed voice transcript"]
-    LOAD["Load owned event state"]
-    MODE{"API key configured?"}
-    MODEL["Model chooses a tool or returns an answer"]
-    TOOL["Validate arguments and execute on isolated draft"]
-    OFFLINE["Parse supported offline commands"]
+    LOAD["Read event from this browser"]
+    SEND["Send plan and recent chat to stateless endpoint"]
+    MODE{"Server API key configured?"}
+    MODEL["Model selects tools on an isolated draft"]
+    RULES["Limited deterministic parser"]
     DIFF{"Plan differences?"}
-    PROPOSAL["Persist proposal and conversation"]
-    ANSWER["Persist conversation only"]
-    CHOICE{"User reviews proposal"}
-    APPLY["Check version and atomically apply"]
-    DISCARD["Mark proposal discarded"]
-    UNDO["Undo while applied version is still current"]
-    START --> LOAD --> MODE
-    MODE -->|Yes| MODEL
-    MODE -->|No| OFFLINE
-    MODEL -->|"Tool call"| TOOL
-    TOOL -->|"Return tool result; bounded loop"| MODEL
-    MODEL -->|"Final answer"| DIFF
-    OFFLINE --> DIFF
+    PROPOSAL["Save local proposal and conversation"]
+    ANSWER["Save local conversation"]
+    CHOICE{"Review proposal"}
+    APPLY["Check current version, save to browser"]
+    UNDO["Undo only while applied version is current"]
+    START --> LOAD --> SEND --> MODE
+    MODE -->|Yes| MODEL --> DIFF
+    MODE -->|No| RULES --> DIFF
     DIFF -->|Yes| PROPOSAL --> CHOICE
     DIFF -->|No| ANSWER
     CHOICE -->|Apply| APPLY --> UNDO
-    CHOICE -->|Discard| DISCARD
-    classDef green fill:#e4f2eb,stroke:#225447,color:#163b31
-    classDef gold fill:#fff3d6,stroke:#a77b30,color:#50390f
-    class START,LOAD,TOOL,APPLY,ANSWER green
-    class MODE,DIFF,CHOICE,PROPOSAL gold
+    CHOICE -->|Discard| DISCARD["Discard local proposal"]
 ```
 
 Diagram source: [docs/agent-workflow.mmd](docs/agent-workflow.mmd).
@@ -224,27 +208,26 @@ This sequence follows an AI request through proposal review and persistence.
 sequenceDiagram
     actor User
     participant Browser as React workspace
-    participant API as Next.js API
+    participant Local as Browser storage
+    participant API as Stateless Next.js API
     participant Agent as Planner + engines
-    participant DB as PostgreSQL
     User->>Browser: Reduce the event budget
-    Browser->>API: POST /events/:id/chat
-    API->>DB: Read owned event and current version
-    DB-->>API: EventState and conversation
+    Browser->>Local: Read current plan and version
+    Local-->>Browser: EventState
+    Browser->>API: POST /api/demo/plan (state, message)
+    API->>API: Validate origin, payload and limits
     API->>Agent: Run against isolated draft
-    Agent-->>API: Proposed state, explanation, actions
-    API->>DB: Store proposal snapshots and messages
-    API-->>Browser: Unchanged plan + proposal
+    Agent-->>API: Proposed state and explanation
+    API-->>Browser: Draft (no server persistence)
+    Browser->>Local: Check version, save local preview
     Browser-->>User: Show before / after differences
     User->>Browser: Apply changes
-    Browser->>API: POST /events/:id/changes/:changeId/apply
-    API->>DB: Check ownership, proposal status and version
+    Browser->>Local: Check current version
     alt Version matches
-        API->>DB: Transaction: save plan, increment version, mark applied
-        DB-->>API: Updated state
-        API-->>Browser: Refresh saved plan
+        Browser->>Local: Save plan, increment version, mark applied
+        Browser-->>User: Updated plan
     else Event changed
-        API-->>Browser: HTTP 409; request a new proposal
+        Browser-->>User: Request a fresh proposal
     end
 ```
 
@@ -267,7 +250,7 @@ The broader [typed service surface](lib/tools/index.ts) includes extraction, bud
 
 **Offline mode:** a deterministic parser handles supported budget, guest, date, photography-allocation, sustainability, checklist, and advisory requests. It is not an LLM and does not promise arbitrary language understanding.
 
-**Creation fallback:** if initial AI personalization fails, creation can save a rule-based draft and record the fallback in the activity log.
+**Initial creation:** the browser creates a deterministic plan immediately. Ask the planner to personalize it; changes remain proposals until approved.
 
 ## 🧰 Tech stack
 
@@ -275,17 +258,17 @@ The broader [typed service surface](lib/tools/index.ts) includes extraction, bud
 | -------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
 | Application    | Next.js 16.4.3, React 19, TypeScript           | App Router, route handlers, typed UI and domain code               |
 | Presentation   | CSS, Lucide React, Recharts                    | Responsive styling, icons, and budget visualization                |
-| Authentication | NextAuth.js, Google OAuth                      | Verified sign-in, encrypted sessions, and separate user workspaces |
+| Authentication | None in public demo; optional NextAuth / Google | Public access; sign-in retained for the database edition |
 | Validation     | Zod 4                                          | Request schemas and model-tool argument validation                 |
-| Persistence    | PostgreSQL, Prisma 6.19                        | Relational models, migrations, and transactions                    |
+| Persistence | Browser localStorage + JSON backups | Local plans and history; optional PostgreSQL / Prisma edition |
 | AI             | OpenAI SDK                                     | Structured extraction, Responses tool calling, and transcription   |
 | Voice          | MediaRecorder, browser speech synthesis        | On-demand capture and optional spoken replies                      |
 | Tests          | Vitest, Testing Library, jsdom                 | Domain, mocked agent, UI, and API/database tests                   |
-| Local tooling  | pnpm, tsx, embedded-postgres or Docker Compose | Dependencies, scripts, and local PostgreSQL                        |
+| Local tooling | pnpm, tsx; optional PostgreSQL tooling | Development scripts and optional database tests |
 
 ## ☁️ Deploy on Vercel
 
-Public deployments use Google sign-in, a hosted PostgreSQL database, and separate user workspaces. Follow the **[Vercel deployment guide](docs/deployment.md)** for OAuth callbacks, environment variables, database setup, and release checks. The Vercel build rejects shared demo mode and missing production configuration.
+Set `NEXT_PUBLIC_STORAGE_MODE=browser` and `APP_ORIGIN` to the deployment's HTTPS origin. Add an optional server-side `OPENAI_API_KEY` for AI and voice. No database or Google credentials are required. The **[Vercel deployment guide](docs/deployment.md)** covers setup, backups, AI data handling, and release checks.
 
 <a id="setup"></a>
 
@@ -293,9 +276,9 @@ Public deployments use Google sign-in, a hosted PostgreSQL database, and separat
 
 ### Prerequisites
 
-- **Node.js 22+** and **pnpm** installed.
+- **Node.js 22.x** and **pnpm 10.28.2** installed.
 - A terminal with access to this repository.
-- Choose **embedded PostgreSQL** or **Docker with Compose**. The documented local flow supports Windows x64.
+- No database or Docker is required for the public browser demo.
 - An OpenAI API key only if you want connected AI or transcription.
 
 ### 1. Clone and install
@@ -318,13 +301,22 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-Keep `OPENAI_API_KEY` empty for an offline first run. Generate the database client:
+Keep `OPENAI_API_KEY` empty for an offline first run. Generate the optional database client's build types (this does not connect to a database):
 
 ```sh
 pnpm db:generate
 ```
 
-### 2. Start the database
+### 2. Choose storage
+
+The environment template defaults to `NEXT_PUBLIC_STORAGE_MODE=browser`. Skip database setup and go straight to **Run the frontend and backend** below. Your first workspace is empty; create an event to start. AI requests need a network connection even when using the rule-based parser.
+
+<details>
+<summary>Optional PostgreSQL edition: database setup and seed</summary>
+
+Set `NEXT_PUBLIC_STORAGE_MODE=database` first. For a local demo identity use `DEMO_MODE=true`.
+
+#### Start the database
 
 Choose one option. Both local options use port **54329**; do not run them together.
 
@@ -336,7 +328,7 @@ Choose one option. Both local options use port **54329**; do not run them togeth
 
 The embedded runner stores data in `.data/postgres/` and binds to loopback. Stop it gracefully with **Ctrl+C**. Do not launch a second embedded instance against the same data directory.
 
-### 3. Apply migrations and seed
+#### Apply migrations and seed
 
 In another terminal, from the repository root:
 
@@ -347,7 +339,9 @@ pnpm db:seed
 
 The seed creates the local demo user and **Delhi Modern Wedding** if that user has no events. Re-running it preserves existing events. If an AI key is configured, creating the seed event may invoke billable personalization.
 
-### 4. Run the frontend and backend
+</details>
+
+### 3. Run the frontend and backend
 
 ```sh
 pnpm dev
@@ -362,9 +356,11 @@ pnpm build
 pnpm start
 ```
 
-Keep PostgreSQL running. Production output uses `.next-production/`; development uses `.next/`. The start script also binds to loopback. For Google sign-in, set `DEMO_MODE=false` and configure the OAuth variables below. Vercel rejects shared demo mode.
+Production output uses `.next-production/` locally and `.next/` on Vercel. The start script binds to loopback. Browser mode needs no database process. In the optional database edition, keep PostgreSQL running; hosted deployments also require Google sign-in.
 
 ### Environment variables
+
+`NEXT_PUBLIC_STORAGE_MODE=browser` selects the public demo. Only `APP_ORIGIN` and optional OpenAI settings apply in that mode. Database, `DEMO_MODE`, and NextAuth / Google variables below apply only to the optional database edition.
 
 | Variable                                    | Example/default in this repository                                                   | Purpose                                                       |
 | ------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
@@ -381,7 +377,7 @@ Keep PostgreSQL running. Production output uses `.next-production/`; development
 
 Model names above are repository configuration values, not a guarantee of account availability. Choose compatible models accessible to your account and restart the app after changing the environment. Never commit a populated `.env`.
 
-### Database development
+### Database development (optional edition)
 
 The schema covers events, preferences, budgets/categories, tasks, timelines, service categories, recommendations, risks, conversations, actions, guests, expenses, payments, and plan changes.
 
@@ -425,7 +421,9 @@ pnpm build
 | API and database | Persistence, ownership, stale-state checks, guests, payments, proposal lifecycle                   |
 | UI               | Creation, chat approval, task actions, expenses, voice controls, appearance, and clock preferences |
 
-**Integration prerequisites:** `pnpm test` includes PostgreSQL-backed tests. Provide `.env`, a running development database, and applied migrations. Integration tests create disposable events and clean up their own records; use a dedicated development/test database.
+**Default tests:** `pnpm test` runs the database-free unit, UI, agent, browser-storage, and stateless API suites. Browser-storage tests cover reloads, backups, storage failures, guest and payment validation, and proposal conflicts.
+
+**Optional database tests:** run `pnpm test:db` with `NEXT_PUBLIC_STORAGE_MODE=database`, `DEMO_MODE=true`, a dedicated test database, and applied migrations. They create disposable events and clean up their own records.
 
 To run only the unit and mocked UI suites:
 
@@ -462,7 +460,9 @@ EventIQ/
 ├── components/                 # Workspace, creation, guests, expenses, voice
 ├── lib/
 │   ├── agent/                  # Extraction, tool loop, offline parser
-│   ├── db/                     # Prisma client and transactional repositories
+│   ├── browser-store.ts        # Browser persistence, validation, backups and proposals
+│   ├── server/                 # Stateless demo API and optional database API
+│   ├── db/                     # Optional Prisma repositories
 │   ├── tools/                  # Typed helpers and vendor-provider interface
 │   ├── engines.ts              # Budgets, tasks, services, timeline, risks
 │   ├── validation.ts           # Domain and request schemas
@@ -481,7 +481,9 @@ EventIQ/
 
 ## 🔌 API overview
 
-All routes below are prefixed with `/api`. Resource access is scoped through the current-user adapter. JSON is used for ordinary mutation bodies; transcription accepts multipart form data.
+**Public browser mode:** only GET /api/health and POST /api/demo/extract, /api/demo/plan, /api/demo/transcribe are server endpoints. Event/guest/expense CRUD below is implemented locally by the browser adapter. These REST routes are server-backed only in the optional database edition.
+
+All routes below are prefixed with `/api`. In the database edition, resource access is scoped through the current-user adapter. JSON is used for ordinary mutation bodies; transcription accepts multipart form data.
 
 | Method               | Path                                                             | Purpose                                              |
 | -------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- |
@@ -504,7 +506,7 @@ All routes below are prefixed with `/api`. Resource access is scoped through the
 | PATCH / DELETE       | `/events/:id/expenses/:expenseId`                                | Edit / delete an expense                             |
 | POST                 | `/events/:id/expenses/:expenseId/payments`                       | Record a payment                                     |
 | DELETE               | `/events/:id/expenses/:expenseId/payments/:paymentId`            | Remove a payment record                              |
-| GET                  | `/events/:id/changes`                                            | Latest 50 proposal summaries                         |
+| GET                  | `/events/:id/changes`                                            | 20 local previews; 50 in database edition                         |
 | POST                 | `/events/:id/changes/:changeId/{apply,discard,undo}`             | Resolve a proposal; choose one action                |
 | POST                 | `/events/:id/transcribe`                                         | Transcribe an `audio` upload                         |
 
@@ -531,23 +533,25 @@ Use offline mode for a key-free walkthrough of these supported commands. With co
 
 ## 🔐 Security notes and current boundaries
 
-- **Authentication:** public deployments use Google sign-in with verified email and a Google-subject user ID. Shared demo mode is local-only and rejected on Vercel. Sessions expire after seven days; users can sign out from the account menu.
+- **Public demo:** no sign-in. Anyone sharing a browser profile can access its locally saved records. Clearing site data removes them. Export a backup to preserve or transfer plans. Optional database deployments retain Google sign-in.
 - **Server-side credentials:** AI keys stay on the server. `.env`, local database data, dependencies, and build outputs are excluded from Git. Example database credentials are development-only.
-- **Request controls:** handlers validate inputs, check ownership, reject mismatched origins (and missing origins outside demo mode), and apply shared PostgreSQL mutation throttling. These controls are not a substitute for deployment hardening.
-- **Change safety:** proposals use server-owned snapshots and version checks; apply and undo reject stale proposals. This does not provide full stale-browser-form protection for manual edits.
+- **Request controls:** stateless demo endpoints check the origin, bound input sizes, validate submitted plans, and apply a per-instance IP burst limit. These limits reset on cold starts; they are not a distributed quota. Database-mode handlers retain ownership checks and database throttling.
+- **Change safety:** proposals use local snapshots and version checks in browser mode; apply and undo reject stale proposals. This does not provide full stale-browser-form protection for manual edits.
 - **AI data boundary:** planning state and conversation can be sent to the provider. Guest contact records and the expense ledger are not included in the dedicated planning state, but any sensitive information typed into chat is still chat content.
 - **Voice privacy:** recording starts only on request, stops automatically after 60 seconds, and uploads are limited to 4 MiB. EventIQ does not persist raw audio; submitted transcript text becomes ordinary conversation data. Provider data handling still applies.
 - **Planning limits:** cost estimates are illustrative heuristics, not supplier quotes or live currency conversions. Amounts use whole currency units. No invitations, bookings, or payments are sent.
-- **Operational limits:** shared database throttling limits mutations and AI requests per user; it is not a provider spending cap. Calendar planning currently uses UTC-based “today”; the header clock's selected zone affects only its display. Additional concurrency, accessibility, device, and load testing remains appropriate before public launch.
+- **Operational limits:** the public AI endpoints are anonymous. Set provider budgets and Vercel firewall controls for wider use; the burst limit is not a spending cap. Browser storage has finite space and is not encrypted by EventIQ. Web Locks serialize same-origin writes where supported; older browsers only serialize writes within one tab. Calendar planning uses UTC-based “today”.
 
 ## 🛣 Future roadmap
 
 These are proposed improvements, not currently shipped capabilities.
 
-- [x] Integrate Google sign-in and separate user workspaces.
+- [x] Ship a public browser-storage demo with backup export/import.
+- [x] Retain Google sign-in and separate workspaces in the optional database edition.
 - [ ] Extend client-version checks to manual edits and guard against late event-switch responses.
 - [ ] Make event-date and payment-date rules explicitly time-zone-aware.
-- [x] Add shared PostgreSQL request limits for serverless instances.
+- [x] Add shared PostgreSQL request limits in the optional database edition.
+- [ ] Add distributed abuse controls for anonymous AI without an event database.
 - [ ] Add monitoring, backup procedures, and CI checks.
 - [ ] Connect verified supplier discovery and quote comparison.
 - [ ] Support multi-day events, reminders, and calendar exports.

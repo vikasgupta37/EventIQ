@@ -1,8 +1,13 @@
+import { browserStorageEnabled } from "@/lib/storage-mode";
 export async function api<T>(
   path: string,
   method = "GET",
   body?: unknown,
 ): Promise<T> {
+  if (browserStorageEnabled()) {
+    const { browserApi } = await import("@/lib/browser-store");
+    return browserApi<T>(path, method, body);
+  }
   const response = await fetch(`/api/${path}`, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,

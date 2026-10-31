@@ -1,81 +1,81 @@
-# Deploy EventIQ on Vercel
+# Deploy the public EventIQ demo on Vercel
 
-Public deployments use Google sign-in. Demo mode is rejected by the Vercel build.
-Each Google subject owns a separate user record; accounts are never linked by email.
-Existing local demo events are not uploaded or assigned to new users.
+The selected deployment uses **browser storage and no sign-in**. No database is
+connected. Each browser has its own events, guests, expenses, payments, and plan
+history. Clearing site data removes those records. Use Export backup / Import
+backup to move plans between browsers. Import adds events and rejects duplicates.
 
-## Required configuration
+## Production settings
 
-Set these in the Vercel project's **Production** environment:
+| Variable                 | Value                                                     |
+| ------------------------ | --------------------------------------------------------- |
+| NEXT_PUBLIC_STORAGE_MODE | browser                                                   |
+| APP_ORIGIN               | https://eventiq-ashy.vercel.app                           |
+| OPENAI_API_KEY           | Optional server-side secret for AI and voice              |
+| OPENAI_MODEL             | Compatible Responses API model accessible to your account |
+| OPENAI_TRANSCRIBE_MODEL  | gpt-transcribe, or a compatible accessible model          |
 
-| Variable                | Value                                                   |
-| ----------------------- | ------------------------------------------------------- |
-| DATABASE_URL            | Hosted PostgreSQL runtime connection URL                |
-| DIRECT_URL              | Optional non-pooled migration connection                |
-| APP_ORIGIN              | Exact HTTPS production origin, no trailing slash        |
-| NEXTAUTH_URL            | Same value as APP_ORIGIN                                |
-| NEXTAUTH_SECRET         | Cryptographically random secret, at least 32 characters |
-| GOOGLE_CLIENT_ID        | Google OAuth web client ID                              |
-| GOOGLE_CLIENT_SECRET    | Google OAuth web client secret                          |
-| DEMO_MODE               | false                                                   |
-| OPENAI_API_KEY          | Optional server key for connected AI and voice          |
-| OPENAI_MODEL            | Compatible planning model accessible to your account    |
-| OPENAI_TRANSCRIBE_MODEL | Available transcription model                           |
+Database URLs, Google credentials, and NextAuth secrets are **not required** in
+browser mode. The public storage mode is compiled into the client bundle; redeploy
+after changing it. Never give an API key a NEXT_PUBLIC_ prefix.
 
-Generate the auth secret using a password manager or Node's crypto.randomBytes(32).
-Enter secrets in Vercel settings or via its authenticated CLI; do not commit them.
-Do not connect previews to the production database. A preview needs its own database,
-registered Google callback, origin, and authentication configuration.
+Use Node.js 22.x and the repository root. vercel.json runs pnpm install
+--frozen-lockfile and pnpm run build:vercel. The build generates Prisma's optional
+types, skips all database migrations in browser mode, and builds Next.js.
 
-## Google configuration
+## Data and AI behavior
 
-In Google Cloud, configure an OAuth consent screen for EventIQ and a **Web application**
-OAuth client. Request only openid, email, and profile. Add:
+Manual planning, tasks, guests, and expenses persist in localStorage. The browser
+serializes changes using Web Locks where available, checks event versions for AI
+proposals, and reports storage failures instead of claiming a save succeeded.
+Backups contain personal event data; store them privately. Browser storage is
+shared by people using the same browser profile and site origin.
 
-- Authorized JavaScript origin: your APP_ORIGIN.
-- Authorized redirect URI: APP_ORIGIN followed by /api/auth/callback/google.
-- For optional local testing: http://127.0.0.1:3000/api/auth/callback/google.
+AI extraction, planning, and transcription use stateless server endpoints.
+Planning sends the event plan and latest 12 chat messages; the guest contact list
+and expense ledger are not included. Typed messages and event fields may still
+contain personal details. OpenAI processes these requests; no event database is
+maintained by this app. Responses API requests use store: false.
 
-While the consent screen is in Testing, add intended testers. To allow general public
-sign-in, publish the consent screen according to Google's requirements.
-No Google password or access token is exposed to the EventIQ browser session.
+Manual event creation generates a deterministic initial plan. AI personalization
+is requested explicitly in the planner. Without a key, the server uses the
+limited deterministic parser. AI requests still require network access.
 
-## Vercel project settings
+Requests enforce the configured origin and validate bounded payloads (256 KiB
+for JSON, 4 MiB audio). A warm function instance permits 10 AI requests per IP per
+minute. This in-memory burst limit resets on cold starts and is not a global
+spending cap. The anonymous demo is not a substitute for a protected production
+service; configure provider budgets and Vercel firewall controls for wider usage.
 
-Import vikasgupta37/EventIQ and select Next.js, the repository root, and Node.js 22.x.
-The committed vercel.json selects pnpm install --frozen-lockfile and pnpm run build:vercel.
-This generates Prisma Client, applies committed migrations, and builds Next.js.
-On Vercel the output is .next; local production builds retain .next-production.
-Do not run the local database script, Docker Compose, or the demo seed on Vercel.
+## Release checks
 
-The RequestRateLimit migration provides atomic per-user counters shared by function instances:
-60 mutations per minute and 10 AI-related mutations per minute. These are application
-limits, not a provider spending cap. Set provider budget alerts separately.
+1. Open /dashboard and /events/new without sign-in.
+2. Create an event, refresh, and verify browser persistence.
+3. Add a guest, confirmed expense, and payment; check invalid payments are rejected.
+4. Request an AI change, review it, apply it, and undo it before another edit.
+5. Export a backup; import it into another browser profile.
+6. Verify another browser profile starts with no events.
+7. Confirm /api/events does not expose server-stored events and /api/auth/providers is disabled.
+8. Check /api/health reports storage: browser. This reports configuration, not live model access.
 
-Audio is capped at 4 MiB on both client and server, leaving multipart headroom under
-Vercel's 4.5 MB function payload limit. API routes allow up to 300 seconds; actual
-availability depends on the project's Vercel function configuration.
+## Optional database edition
 
-## Verify the release
-
-1. A signed-out visit to /dashboard redirects to /signin.
-2. Sign in with a verified Google account and create a new event.
-3. Refresh and verify persistence.
-4. Review and apply an AI change, then undo before any other edits.
-5. Add a guest, a confirmed expense, and a partial payment.
-6. Sign out, sign in with a different account, and verify the first account's events
-   are not listed or accessible by ID.
-7. Verify small voice uploads, declined microphone permission, and oversized-upload errors.
-8. Confirm the production origin accepts writes and cross-origin requests are rejected.
+The repository retains the PostgreSQL / Google sign-in implementation for future
+use. Set NEXT_PUBLIC_STORAGE_MODE=database, configure DATABASE_URL, optional
+DIRECT_URL for migrations, APP_ORIGIN, NEXTAUTH_URL, NEXTAUTH_SECRET (32+ random
+characters), GOOGLE_CLIENT_ID, and GOOGLE_CLIENT_SECRET. Register the Google
+callback at APP_ORIGIN/api/auth/callback/google. Set DEMO_MODE=false on Vercel.
+Each deployment environment must have its own database. The database build runs
+committed migrations and never seeds local demo data.
 
 ## Rollback
 
-Use Vercel's deployment rollback for application code. Database migrations remain applied;
-review migration compatibility before rolling back and use your provider's backups for data
-recovery. Never run prisma migrate reset against production.
+A Vercel rollback restores code and its bundled storage mode. Browser data remains
+on the visitor's device. Export backups before making incompatible storage-format
+changes. Database migrations matter only when using the optional database edition.
 
 ## References
 
-- [NextAuth Google provider](https://next-auth.js.org/providers/google)
-- [Vercel Marketplace storage](https://vercel.com/docs/marketplace-storage)
+- [Vercel environment variables](https://vercel.com/docs/environment-variables)
 - [Vercel function limits](https://vercel.com/docs/functions/limitations)
+- [NextAuth Google provider, optional database edition](https://next-auth.js.org/providers/google)

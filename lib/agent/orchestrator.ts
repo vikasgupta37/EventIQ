@@ -5,8 +5,7 @@ import { aiClient, hasAI, model, parseAmount } from "./extract";
 import { create_event_plan, categoryNames, daysUntil, money } from "../engines";
 import { eventSchema } from "../validation";
 import type { Action, EventState } from "../types";
-import { get_event_state } from "../db/events";
-import { stageResult } from "../db/changes";
+
 const changeSchema = z
   .object({
     budget: z.number().int().min(100).max(1e9).nullable(),
@@ -322,6 +321,8 @@ export async function runAgent(initial: EventState, message: string) {
   );
 }
 export async function chat(id: string, userId: string, message: string) {
+  const { get_event_state } = await import("../db/events");
+  const { stageResult } = await import("../db/changes");
   const initial = await get_event_state(id, userId);
   const result = await runAgent(initial, message);
   return stageResult(initial, userId, message, result);

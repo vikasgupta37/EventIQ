@@ -1,26 +1,19 @@
 flowchart TB
     UI["Next.js + React workspace"]
-    API["Route handlers /api/*"]
-    GUARD["Identity, ownership, origin checks and Zod validation"]
-    AGENT["Agent orchestrator"]
-    AI["OpenAI Responses API"]
-    DEMO["Offline demo parser"]
+    LOCAL[("Browser localStorage")]
     ENGINE["Deterministic planning engines"]
-    REVIEW["Proposal staging and apply / discard / undo"]
-    REPO["Prisma repositories"]
-    DB[("PostgreSQL")]
-    UI --> API --> GUARD
-    GUARD --> AGENT
-    GUARD -->|"Manual edits and records"| REPO
+    REVIEW["Review / apply / discard / undo"]
+    API["Stateless Next.js AI endpoints"]
+    GUARD["Origin check, bounded input, burst limit"]
+    AGENT["Agent orchestrator"]
+    AI["OpenAI Responses / transcription"]
+    BACKUP["Export / import JSON backup"]
+    UI <-->|"Events, guests, expenses, history"| LOCAL
+    UI -->|"Manual changes"| ENGINE --> LOCAL
+    UI -->|"Event plan + recent chat"| API --> GUARD --> AGENT
     AGENT <-->|"Validated tool calls"| AI
-    AGENT --> DEMO
-    AGENT --> ENGINE
-    DEMO --> ENGINE
-    ENGINE -->|"Existing-event AI draft"| REVIEW
-    REVIEW --> REPO
-    REPO <--> DB
-    REPO -->|"Saved state and proposal metadata"| UI
+    AGENT -->|"Draft only"| REVIEW --> UI
+    UI -->|"User-approved changes"| LOCAL
+    LOCAL <--> BACKUP
     classDef green fill:#e4f2eb,stroke:#225447,color:#163b31
-    classDef gold fill:#fff3d6,stroke:#a77b30,color:#50390f
-    class UI,API,GUARD,ENGINE,REPO green
-    class AI,DEMO,REVIEW gold
+    class UI,LOCAL,ENGINE,REVIEW green

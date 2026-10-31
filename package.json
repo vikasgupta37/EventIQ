@@ -14,11 +14,12 @@
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/api.test.ts --exclude tests/management.test.ts --exclude tests/rate-limit.test.ts",
     "db:local": "tsx scripts/local-db.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test:db": "vitest run tests/api.test.ts tests/management.test.ts tests/rate-limit.test.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",

@@ -3106,3 +3106,29 @@ td small {
 .signin-card p {
   line-height: 1.6;
 }
+
+.browser-storage-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  margin: 0 0 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg);
+  font-size: 13px;
+}
+.browser-storage-note > div:first-child {
+  flex: 1;
+  min-width: 220px;
+}
+.browser-storage-note p {
+  margin: 5px 0 0;
+  line-height: 1.5;
+}
+.browser-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

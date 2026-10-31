@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { browserStorageEnabled } from "@/lib/storage-mode";
 import { redirect } from "next/navigation";
 import { Sparkles, ShieldCheck } from "lucide-react";
 import {
@@ -14,7 +15,7 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  if (demoEnabled()) redirect("/dashboard");
+  if (browserStorageEnabled() || demoEnabled()) redirect("/dashboard");
   const configured = googleConfigured();
   let signedIn = false;
   if (configured) {

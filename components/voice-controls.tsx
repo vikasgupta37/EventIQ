@@ -1,4 +1,5 @@
 "use client";
+import { browserStorageEnabled } from "@/lib/storage-mode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Square, Volume2, VolumeX, X } from "lucide-react";
 import { MAX_AUDIO_BYTES } from "@/lib/voice-limits";
@@ -183,11 +184,16 @@ export default function VoiceControls({
             blob,
             blob.type.includes("mp4") ? "recording.mp4" : "recording.webm",
           );
-          const response = await fetch(`/api/events/${eventId}/transcribe`, {
-            method: "POST",
-            body: form,
-            signal: controller.current.signal,
-          });
+          const response = await fetch(
+            browserStorageEnabled()
+              ? "/api/demo/transcribe"
+              : `/api/events/${eventId}/transcribe`,
+            {
+              method: "POST",
+              body: form,
+              signal: controller.current.signal,
+            },
+          );
           const data = await response.json();
           if (!response.ok)
             throw new Error(

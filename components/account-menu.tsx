@@ -3,7 +3,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { MoreHorizontal } from "lucide-react";
-export type WorkspaceAccount = { name: string; email: string; demo: boolean };
+export type WorkspaceAccount = {
+  name: string;
+  email: string;
+  demo: boolean;
+  browser?: boolean;
+};
 export default function AccountMenu({
   account,
 }: {
@@ -28,14 +33,20 @@ export default function AccountMenu({
         <span className="avatar">{initials}</span>
         <span>
           <b>{account.name}</b>
-          <small>Personal workspace</small>
+          <small>
+            {account.browser ? "This browser only" : "Personal workspace"}
+          </small>
         </span>
         <MoreHorizontal size={18} />
       </button>
       {open && (
         <div className="profile-popover">
           <b>
-            {account.demo ? "Local demo workspace" : "Signed in with Google"}
+            {account.browser
+              ? "Public demo workspace"
+              : account.demo
+                ? "Local demo workspace"
+                : "Signed in with Google"}
           </b>
           <p>{account.email}</p>
           <Link href="/">Visit EventIQ home</Link>

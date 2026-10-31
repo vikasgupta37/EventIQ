@@ -1,29 +1,20 @@
 flowchart TD
     START["Typed request or reviewed voice transcript"]
-    LOAD["Load owned event state"]
-    MODE{"API key configured?"}
-    MODEL["Model chooses a tool or returns an answer"]
-    TOOL["Validate arguments and execute on isolated draft"]
-    OFFLINE["Parse supported offline commands"]
+    LOAD["Read event from this browser"]
+    SEND["Send plan and recent chat to stateless endpoint"]
+    MODE{"Server API key configured?"}
+    MODEL["Model selects tools on an isolated draft"]
+    RULES["Limited deterministic parser"]
     DIFF{"Plan differences?"}
-    PROPOSAL["Persist proposal and conversation"]
-    ANSWER["Persist conversation only"]
-    CHOICE{"User reviews proposal"}
-    APPLY["Check version and atomically apply"]
-    DISCARD["Mark proposal discarded"]
-    UNDO["Undo while applied version is still current"]
-    START --> LOAD --> MODE
-    MODE -->|Yes| MODEL
-    MODE -->|No| OFFLINE
-    MODEL -->|"Tool call"| TOOL
-    TOOL -->|"Return tool result; bounded loop"| MODEL
-    MODEL -->|"Final answer"| DIFF
-    OFFLINE --> DIFF
+    PROPOSAL["Save local proposal and conversation"]
+    ANSWER["Save local conversation"]
+    CHOICE{"Review proposal"}
+    APPLY["Check current version, save to browser"]
+    UNDO["Undo only while applied version is current"]
+    START --> LOAD --> SEND --> MODE
+    MODE -->|Yes| MODEL --> DIFF
+    MODE -->|No| RULES --> DIFF
     DIFF -->|Yes| PROPOSAL --> CHOICE
     DIFF -->|No| ANSWER
     CHOICE -->|Apply| APPLY --> UNDO
-    CHOICE -->|Discard| DISCARD
-    classDef green fill:#e4f2eb,stroke:#225447,color:#163b31
-    classDef gold fill:#fff3d6,stroke:#a77b30,color:#50390f
-    class START,LOAD,TOOL,APPLY,ANSWER green
-    class MODE,DIFF,CHOICE,PROPOSAL gold
+    CHOICE -->|Discard| DISCARD["Discard local proposal"]

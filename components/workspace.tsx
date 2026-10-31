@@ -32,6 +32,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import type { EventState, Task } from "@/lib/types";
 import { daysUntil, money } from "@/lib/engines";
 import { api } from "./api";
+import BrowserData from "./browser-data";
+import { browserStorageEnabled } from "@/lib/storage-mode";
 import VoiceControls from "./voice-controls";
 import Guests from "./guests";
 import Expenses from "./expenses";
@@ -444,7 +446,11 @@ export default function Workspace({
           <div className="header-utilities">
             <span className="mode">
               <span className="live-dot" />
-              {mode === "ai" ? "AI configured" : "Offline demo"}
+              {mode === "ai"
+                ? "AI configured"
+                : browserStorageEnabled()
+                  ? "Demo planner"
+                  : "Offline demo"}
             </span>
             <LiveClock />
             <AppearanceSelect />
@@ -481,6 +487,7 @@ export default function Workspace({
           )}
         </header>
         <main className="workspace-main">
+          <BrowserData />
           {error && (
             <div className="error" role="alert">
               {error}

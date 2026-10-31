@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Sparkles, Check } from "lucide-react";
 import type { EventInput } from "@/lib/validation";
 import type { EventState } from "@/lib/types";
 import { api } from "./api";
+import BrowserData from "./browser-data";
 import AppearanceSelect from "./appearance";
 const initial: EventInput = {
   name: "",
@@ -80,6 +81,7 @@ export default function CreateEvent() {
         <h1>What are we celebrating?</h1>
         <p>Bring the idea. We’ll help with the details.</p>
       </div>
+      <BrowserData />
       <div className="create-card">
         <div className="tabs">
           <button
