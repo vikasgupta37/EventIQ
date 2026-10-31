@@ -14,6 +14,7 @@
   </p>
 
   <p>
+    <a href="https://eventiq-ashy.vercel.app">Live demo</a> ·
     <a href="#overview">Overview</a> ·
     <a href="#screenshots">Screenshots</a> ·
     <a href="#setup">Quick start</a> ·
@@ -103,7 +104,9 @@ The ledger separates estimated planning costs from confirmed expenses and record
 
 </details>
 
-**Try it locally:** follow the [setup guide](#setup), open [http://127.0.0.1:3000](http://127.0.0.1:3000), and run the [demo walkthrough](#demo). This repository does not currently advertise a hosted demo or a demo video.
+**[Open the live demo →](https://eventiq-ashy.vercel.app)** No sign-in required. Each browser starts with its own empty workspace. Create an event, explore the planner, and export a backup to keep your work.
+
+**Try it locally:** follow the [setup guide](#setup), open [http://127.0.0.1:3000](http://127.0.0.1:3000), and run the [demo walkthrough](#demo). A demo video is not yet published.
 
 ## 🧭 How EventIQ works
 
