@@ -52,8 +52,15 @@ test("event, guest and payment records survive refresh", async ({ page }) => {
   await page
     .getByRole("button", { name: "Save payment record", exact: true })
     .click();
+  // Saving uses an asynchronous browser lock. Refresh only after the UI confirms it.
+  await expect(
+    page.getByText("1 recorded payment", { exact: true }),
+  ).toBeVisible();
   await page.reload();
   await expect(page.getByText("Venue deposit", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("1 recorded payment", { exact: true }),
+  ).toBeVisible();
   const data = await page.evaluate(
     (key) => JSON.parse(localStorage.getItem(key)!),
     storageKey,
