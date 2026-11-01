@@ -1,3 +1,4 @@
+import { withAIExecution } from "./agent/execution";
 import { AppError } from "./auth";
 import { aiClient, hasAI } from "./agent/extract";
 
@@ -74,17 +75,26 @@ export async function readAudioUpload(request: Request): Promise<File> {
   return new File([audio], `recording.${extension}`, { type: mime });
 }
 
-export async function transcribeAudio(audio: File): Promise<string> {
+export function transcribeAudio(
+  audio: File,
+  signal?: AbortSignal,
+): Promise<string> {
+  return withAIExecution(signal, (signal) => transcribe(audio, signal), 45_000);
+}
+async function transcribe(audio: File, signal: AbortSignal): Promise<string> {
   if (!hasAI())
     throw new AppError(
       503,
       "Voice input needs an OpenAI API key. You can still type your message.",
     );
-  const transcript = await aiClient().audio.transcriptions.create({
-    file: audio,
-    model: process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-transcribe",
-    response_format: "json",
-  });
+  const transcript = await aiClient().audio.transcriptions.create(
+    {
+      file: audio,
+      model: process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-transcribe",
+      response_format: "json",
+    },
+    { signal, maxRetries: 0 },
+  );
   const text = transcript.text.trim();
   if (!text)
     throw new AppError(

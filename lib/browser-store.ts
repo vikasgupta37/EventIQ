@@ -101,12 +101,17 @@ const uid = () => crypto.randomUUID();
 function snapshot(state: EventState) {
   return { ...structuredClone(state), messages: [], actions: [] };
 }
-async function remote<T>(endpoint: string, body: unknown): Promise<T> {
+async function remote<T>(
+  endpoint: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch("/api/demo/" + endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
+    signal,
   });
   const result = await response
     .json()
@@ -114,19 +119,25 @@ async function remote<T>(endpoint: string, body: unknown): Promise<T> {
   if (!response.ok) throw new Error(result.error || "Please try again.");
   return result;
 }
-async function plan(id: string, message: string) {
+async function plan(id: string, message: string, signal?: AbortSignal) {
   const initial = record(read(), id).state;
   const result = await remote<{
     state: EventState;
     reply: string;
     actions: Action[];
     mode: string;
-  }>("plan", {
-    state: { ...initial, messages: initial.messages.slice(-12), actions: [] },
-    message,
-  });
+  }>(
+    "plan",
+    {
+      state: { ...initial, messages: initial.messages.slice(-12), actions: [] },
+      message,
+    },
+    signal,
+  );
+  signal?.throwIfAborted();
   const { state: after } = validateAgentResult(initial, result);
   return edit((store) => {
+    signal?.throwIfAborted();
     const item = record(store, id);
     const current = item.state;
     if (current.version !== initial.version)
@@ -194,10 +205,12 @@ export async function browserApi<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  options: { signal?: AbortSignal } = {},
 ): Promise<T> {
+  options.signal?.throwIfAborted();
   const [resource, id, section, itemId, action, paymentId] = path.split("/");
   if (resource === "extract" && method === "POST")
-    return remote<T>("extract", body);
+    return remote<T>("extract", body, options.signal);
   if (
     resource === "events" &&
     id &&
@@ -211,14 +224,16 @@ export async function browserApi<T>(
         ? z.object({ message: z.string().trim().min(1).max(6000) }).parse(body)
             .message
         : "Rebalance and personalize the complete event plan using my current requirements.";
-    return (await plan(id, message)) as T;
+    return (await plan(id, message, options.signal)) as T;
   }
   if (method === "GET") {
     const store = read();
     if (resource === "events" && !id) {
       const health = await fetch("/api/health", {
         cache: "no-store",
-        signal: AbortSignal.timeout(3000),
+        signal: options.signal
+          ? AbortSignal.any([options.signal, AbortSignal.timeout(3000)])
+          : AbortSignal.timeout(3000),
       })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);

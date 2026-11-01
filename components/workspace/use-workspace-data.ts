@@ -22,14 +22,20 @@ export function useWorkspaceData() {
   const selectedId = useRef<string | null>(null);
   const selectedVersion = useRef(0);
   const pending = useRef(false);
+  const network = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const lifecycle = selection;
     const generation = ++selection.current;
+    const controller = new AbortController();
+    network.current = controller;
     async function load() {
       try {
         const result = await api<{ events: EventSummary[]; mode: string }>(
           "events",
+          "GET",
+          undefined,
+          { signal: controller.signal },
         );
         if (generation !== selection.current) return;
         setEvents(result.events);
@@ -46,7 +52,9 @@ export function useWorkspaceData() {
           result.events[0]?.id;
         selectedId.current = id ?? null;
         if (id) {
-          const next = await api<EventState>(`events/${id}`);
+          const next = await api<EventState>(`events/${id}`, "GET", undefined, {
+            signal: controller.signal,
+          });
           if (generation === selection.current) {
             selectedVersion.current = next.version;
             setState(next);
@@ -61,6 +69,7 @@ export function useWorkspaceData() {
     void load();
     return () => {
       lifecycle.current++;
+      network.current?.abort();
     };
   }, []);
 
@@ -68,13 +77,18 @@ export function useWorkspaceData() {
     // Mutations are serialized; never switch the visible event during a save.
     if (pending.current) return;
     const generation = ++selection.current;
+    network.current?.abort();
+    const controller = new AbortController();
+    network.current = controller;
     selectedId.current = id;
     setState(null);
     setLoading(true);
     setError("");
     setNotice("");
     try {
-      const next = await api<EventState>(`events/${id}`);
+      const next = await api<EventState>(`events/${id}`, "GET", undefined, {
+        signal: controller.signal,
+      });
       if (generation !== selection.current) return;
       selectedVersion.current = next.version;
       setState(next);
@@ -115,17 +129,19 @@ export function useWorkspaceData() {
   }
 
   async function run<T>(
-    operation: () => Promise<T>,
+    operation: (signal: AbortSignal) => Promise<T>,
     apply: (result: T) => void,
   ): Promise<T | null> {
     if (pending.current || loading || !selectedId.current) return null;
     const generation = selection.current;
+    const controller = new AbortController();
+    network.current = controller;
     pending.current = true;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const result = await operation();
+      const result = await operation(controller.signal);
       if (generation !== selection.current) return null;
       apply(result);
       return result;
@@ -140,17 +156,20 @@ export function useWorkspaceData() {
 
   async function mutate(path: string, method: string, body?: unknown) {
     return (
-      (await run(() => api<EventState>(path, method, body), acceptState)) !==
-      null
+      (await run(
+        (signal) => api<EventState>(path, method, body, { signal }),
+        acceptState,
+      )) !== null
     );
   }
   async function requestPlan(message: string) {
     const result = await run(
-      () =>
+      (signal) =>
         api<{ state: EventState; mode: string }>(
           `events/${selectedId.current}/chat`,
           "POST",
           { message },
+          { signal },
         ),
       (result) => {
         acceptState(result.state);
@@ -162,11 +181,12 @@ export function useWorkspaceData() {
   }
   async function rebalance() {
     await run(
-      () =>
+      (signal) =>
         api<{ state: EventState }>(
           `events/${selectedId.current}/budget/rebalance`,
           "POST",
           {},
+          { signal },
         ),
       (result) => {
         acceptState(result.state);

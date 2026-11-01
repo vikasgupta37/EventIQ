@@ -6,29 +6,15 @@ import { eventStateSchema } from "../event-state-schema";
 import { hasAI, extract_event_details } from "../agent/extract";
 import { runAgent } from "../agent/orchestrator";
 import { readAudioUpload, transcribeAudio } from "../voice";
-// Best-effort burst control per warm function instance; not a distributed quota.
-const buckets = new Map<string, { window: number; count: number }>();
-let bucketWindow = -1;
-export function limitPublicRequests(ip: string, now = Date.now()) {
-  const window = Math.floor(now / 60000);
-  if (bucketWindow !== window) {
-    buckets.clear();
-    bucketWindow = window;
-  }
-  const bucket = buckets.get(ip);
-  if (bucket && bucket.count >= 10)
-    throw new AppError(
-      429,
-      "Demo request limit reached. Please wait a minute.",
-    );
-  if (!bucket && buckets.size >= 10000)
-    throw new AppError(429, "The demo is busy. Please try again shortly.");
-  buckets.set(ip, { window, count: (bucket?.count ?? 0) + 1 });
-}
+import { PublicRequestGate } from "./public-request-gate";
+const gate = new PublicRequestGate();
+export const limitPublicRequests = (ip: string, now?: number) =>
+  gate.count(ip, now);
 export async function browserHandler(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
+  let release: (() => void) | undefined;
   try {
     const { path } = await params;
     if (request.method === "GET" && path.join("/") === "health")
@@ -51,21 +37,27 @@ export async function browserHandler(
         403,
         "Open EventIQ in its own browser tab to use the planner.",
       );
-    limitPublicRequests(
+    const ip =
       request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
-        "local",
-    );
-    if (endpoint === "demo/transcribe")
+      "local";
+    limitPublicRequests(ip);
+    if (endpoint === "demo/transcribe") {
+      const audio = await readAudioUpload(request);
+      release = gate.acquire(ip);
       return NextResponse.json({
-        text: await transcribeAudio(await readAudioUpload(request)),
+        text: await transcribeAudio(audio, request.signal),
       });
+    }
     const body = await readJsonBody(request, 256 * 1024);
     if (endpoint === "demo/extract") {
       const { text } = z
         .object({ text: z.string().trim().min(10).max(6000) })
         .strict()
         .parse(body);
-      return NextResponse.json(await extract_event_details(text));
+      release = gate.acquire(ip);
+      return NextResponse.json(
+        await extract_event_details(text, request.signal),
+      );
     }
     const { state, message } = z
       .object({
@@ -74,7 +66,8 @@ export async function browserHandler(
       })
       .strict()
       .parse(body);
-    const result = await runAgent(state, message);
+    release = gate.acquire(ip);
+    const result = await runAgent(state, message, request.signal);
     // Validate model-generated state before allowing the browser to stage it.
     return NextResponse.json({
       ...result,
@@ -101,5 +94,7 @@ export async function browserHandler(
       },
       { status: 503 },
     );
+  } finally {
+    release?.();
   }
 }

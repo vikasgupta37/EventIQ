@@ -66,7 +66,12 @@ export default function Budget({
             {busy ? "Reviewing…" : "AI rebalance"}
           </button>
         </div>
-        <div className="table-wrap">
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Budget allocations"
+          tabIndex={0}
+        >
           <table>
             <caption className="sr-only">
               Budget allocations and estimated costs by category

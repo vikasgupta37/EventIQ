@@ -20,5 +20,7 @@ export default defineConfig([
     "artifacts/**",
     ".data/**",
     "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);

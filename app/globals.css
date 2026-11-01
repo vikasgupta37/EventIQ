@@ -900,7 +900,7 @@ p {
 }
 .vendor-summary > span:first-child {
   font-size: 15px;
-  color: #b2a8ba;
+  color: var(--muted);
 }
 .vendor-summary b {
   font-family: Manrope;
@@ -938,7 +938,7 @@ p {
   margin-top: 14px;
 }
 .mini-vendors span:not(.badge) {
-  color: #7c7089;
+  color: var(--muted);
 }
 .mini-vendors .badge {
   margin-left: auto;
@@ -974,14 +974,14 @@ p {
 .mini-timeline b {
   font-size: 10px;
   font-weight: 500;
-  color: #776982;
+  color: var(--ink);
 }
 .attention-card {
   background: #fffdfb;
   border-color: #f0e9e1;
 }
 .attention-card .card-heading h2 {
-  color: #8c7964;
+  color: #70563c;
 }
 .risk-preview {
   display: flex;
@@ -1012,7 +1012,7 @@ p {
 }
 .attention-card > .text-button {
   margin-top: 21px;
-  color: #b49b7a;
+  color: var(--purple);
   font-size: 10px;
 }
 .workspace-footer {
@@ -1312,7 +1312,7 @@ p {
 .action-log small {
   display: block;
   font-size: 8px;
-  color: #aaa0b4;
+  color: var(--muted);
   margin-top: 5px;
 }
 .thinking {
@@ -1361,7 +1361,7 @@ td {
 }
 td small {
   display: block;
-  color: #b2a7bd;
+  color: var(--muted);
   font-size: 9px;
   margin: 5px 0 0 15px;
 }
@@ -1761,7 +1761,7 @@ td small {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #998ca9;
+  color: var(--purple);
 }
 .create-heading {
   text-align: center;
@@ -1798,7 +1798,7 @@ td small {
   gap: 8px;
   font-size: 12px;
   padding: 20px 0;
-  color: #a297ae;
+  color: var(--muted);
   border-bottom: 2px solid transparent;
 }
 .tabs button.active {
@@ -2875,7 +2875,7 @@ td small {
   gap: 6px;
   font-size: 11px;
   margin-left: auto;
-  color: #716479;
+  color: var(--muted);
 }
 .voice-toggle input {
   width: 15px;

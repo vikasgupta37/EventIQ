@@ -196,3 +196,54 @@ describe("OpenAI tool orchestration with mocked transport", () => {
     ).rejects.toThrow("AI unavailable");
   });
 });
+
+describe("Cancelled and incomplete model responses", () => {
+  it("does not call the provider for an already cancelled request", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      runAgent(
+        create_event_plan(input, "cancelled"),
+        "Help",
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ status: 408 });
+    expect(mock.create).not.toHaveBeenCalled();
+  });
+  it("never runs another tool round after cancellation", async () => {
+    const controller = new AbortController();
+    mock.create.mockImplementation(async (_body, options) => {
+      expect(options.signal).toBeInstanceOf(AbortSignal);
+      expect(options.maxRetries).toBe(0);
+      controller.abort();
+      return {
+        output: [
+          {
+            type: "function_call",
+            name: "get_event_state",
+            call_id: "cancelled",
+            arguments: "{}",
+          },
+        ],
+      };
+    });
+    const initial = create_event_plan(input, "cancel-round");
+    const before = structuredClone(initial);
+    await expect(
+      runAgent(initial, "Help", controller.signal),
+    ).rejects.toMatchObject({ status: 408 });
+    expect(mock.create).toHaveBeenCalledTimes(1);
+    expect(initial).toEqual(before);
+  });
+  it("rejects truncated model output instead of staging a partial proposal", async () => {
+    mock.create.mockResolvedValue({
+      status: "incomplete",
+      output: [],
+      output_text: "Partial",
+    });
+    await expect(
+      runAgent(create_event_plan(input, "truncated"), "Help"),
+    ).rejects.toThrow("incomplete");
+    expect(mock.create.mock.calls[0][0].max_output_tokens).toBe(4096);
+  });
+});

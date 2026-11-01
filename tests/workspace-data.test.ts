@@ -117,3 +117,30 @@ describe("Workspace request lifecycle", () => {
     expect(result.current.error).toBe("");
   });
 });
+
+describe("Workspace cancellation", () => {
+  it("aborts a pending load when the workspace unmounts", async () => {
+    mocks.api.mockImplementation(() => new Promise(() => {}));
+    const { unmount } = renderHook(useWorkspaceData);
+    await waitFor(() => expect(mocks.api).toHaveBeenCalled());
+    const signal = mocks.api.mock.calls[0][3].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
+  it("aborts abandoned planner requests and ignores their late result", async () => {
+    const { result, unmount } = renderHook(useWorkspaceData);
+    await waitFor(() => expect(result.current.state?.id).toBe("first"));
+    const slow = deferred<{ state: EventState; mode: string }>();
+    mocks.api.mockReturnValue(slow.promise);
+    let request!: Promise<EventState | null>;
+    act(() => {
+      request = result.current.requestPlan("Change budget");
+    });
+    const signal = mocks.api.mock.calls.at(-1)![3].signal as AbortSignal;
+    unmount();
+    expect(signal.aborted).toBe(true);
+    slow.resolve({ state: first, mode: "ai" });
+    expect(await request).toBeNull();
+  });
+});

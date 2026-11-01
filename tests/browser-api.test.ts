@@ -3,22 +3,30 @@ import { NextRequest } from "next/server";
 import { browserHandler, limitPublicRequests } from "../lib/server/browser-api";
 import { create_event_plan } from "../lib/engines";
 import { extractDemo } from "../lib/agent/extract";
+import * as extraction from "../lib/agent/extract";
+import { withAIExecution } from "../lib/agent/execution";
 beforeEach(() => {
   vi.stubEnv("OPENAI_API_KEY", "");
   vi.stubEnv("APP_ORIGIN", "https://eventiq.example");
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 function request(
   path: string,
   body?: unknown,
   origin = "https://eventiq.example",
+  ip = crypto.randomUUID(),
+  signal?: AbortSignal,
 ) {
   const req = new NextRequest("https://eventiq.example/api/" + path, {
     method: body === undefined ? "GET" : "POST",
+    signal,
     headers: {
       origin,
       "content-type": "application/json",
-      "x-vercel-forwarded-for": crypto.randomUUID(),
+      "x-vercel-forwarded-for": ip,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -98,5 +106,146 @@ describe("Stateless public API", () => {
     for (let i = 0; i < 10; i++) limitPublicRequests(ip, 60000);
     expect(() => limitPublicRequests(ip, 60000)).toThrow("limit");
     expect(() => limitPublicRequests(ip, 120000)).not.toThrow();
+  });
+});
+
+describe("Provider capacity lifetime", () => {
+  it.each([
+    ["demo/extract", "application/json"],
+    ["demo/transcribe", "multipart/form-data; boundary=test"],
+  ])(
+    "does not reserve AI slots for unfinished %s uploads",
+    async (path, contentType) => {
+      const uploads = Array.from({ length: 4 }, () => {
+        let close!: () => void;
+        let reading!: () => void;
+        const started = new Promise<void>((resolve) => {
+          reading = resolve;
+        });
+        const body = new ReadableStream<Uint8Array>(
+          {
+            start(controller) {
+              close = () => controller.close();
+            },
+            pull() {
+              reading();
+              return new Promise<void>(() => {});
+            },
+          },
+          { highWaterMark: 0 },
+        );
+        const response = browserHandler(
+          new NextRequest("https://eventiq.example/api/" + path, {
+            method: "POST",
+            headers: {
+              origin: "https://eventiq.example",
+              "content-type": contentType,
+              "x-vercel-forwarded-for": crypto.randomUUID(),
+            },
+            body,
+            duplex: "half",
+          }),
+          { params: Promise.resolve({ path: path.split("/") }) },
+        );
+        return { started, response, close };
+      });
+      try {
+        // Each handler has reached its body reader; none has a complete payload.
+        await Promise.all(uploads.map((upload) => upload.started));
+        expect(
+          (
+            await request("demo/extract", {
+              text: "Wedding in Delhi with 250 guests",
+            })
+          ).status,
+        ).toBe(200);
+      } finally {
+        uploads.forEach((upload) => upload.close());
+        const responses = await Promise.all(
+          uploads.map((upload) => upload.response),
+        );
+        expect(responses.map((response) => response.status)).toEqual([
+          400, 400, 400, 400,
+        ]);
+      }
+    },
+  );
+
+  it("releases provider slots after failures without exposing the provider error", async () => {
+    const text = "Wedding in Delhi with 250 guests";
+    const provider = vi
+      .spyOn(extraction, "extract_event_details")
+      .mockRejectedValueOnce(new Error("Private provider failure"))
+      .mockRejectedValueOnce(new Error("Private provider failure"))
+      .mockResolvedValueOnce(extractDemo(text));
+    const ip = crypto.randomUUID();
+    for (let i = 0; i < 2; i++) {
+      const response = await request(
+        "demo/extract",
+        { text },
+        "https://eventiq.example",
+        ip,
+      );
+      expect(response.status).toBe(503);
+      expect(JSON.stringify(await response.json())).not.toContain(
+        "Private provider failure",
+      );
+    }
+    expect(
+      (await request("demo/extract", { text }, "https://eventiq.example", ip))
+        .status,
+    ).toBe(200);
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
+  it("releases provider slots when in-flight requests are cancelled", async () => {
+    let ready!: () => void;
+    let started = 0;
+    const bothStarted = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const provider = vi
+      .spyOn(extraction, "extract_event_details")
+      .mockImplementation((_text, signal) =>
+        withAIExecution<
+          Awaited<ReturnType<typeof extraction.extract_event_details>>
+        >(signal, () => {
+          started++;
+          if (started === 2) ready();
+          return new Promise(() => {});
+        }),
+      );
+    const ip = crypto.randomUUID();
+    const controllers = [new AbortController(), new AbortController()];
+    const pending = controllers.map((controller) =>
+      request(
+        "demo/extract",
+        { text: "Wedding in Delhi with 250 guests" },
+        "https://eventiq.example",
+        ip,
+        controller.signal,
+      ),
+    );
+    try {
+      await bothStarted;
+      controllers.forEach((controller) => controller.abort());
+      expect(
+        (await Promise.all(pending)).map((response) => response.status),
+      ).toEqual([408, 408]);
+    } finally {
+      controllers.forEach((controller) => controller.abort());
+      await Promise.all(pending);
+      provider.mockRestore();
+    }
+    expect(
+      (
+        await request(
+          "demo/extract",
+          { text: "Wedding in Delhi with 250 guests" },
+          "https://eventiq.example",
+          ip,
+        )
+      ).status,
+    ).toBe(200);
   });
 });

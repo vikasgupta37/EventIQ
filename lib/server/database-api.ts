@@ -62,7 +62,9 @@ async function handler(
       const { text } = z
         .object({ text: z.string().min(10).max(6000) })
         .parse(await body());
-      return NextResponse.json(await extract_event_details(text));
+      return NextResponse.json(
+        await extract_event_details(text, request.signal),
+      );
     }
     if (resource === "events" && !id) {
       if (method === "GET")
@@ -139,7 +141,7 @@ async function handler(
         await get_event_state(id, user.id);
         const audio = await readAudioUpload(request);
         return NextResponse.json(
-          { text: await transcribeAudio(audio) },
+          { text: await transcribeAudio(audio, request.signal) },
           { headers: { "Cache-Control": "no-store" } },
         );
       }
@@ -163,7 +165,9 @@ async function handler(
           .object({ message: z.string().trim().min(1).max(6000) })
           .strict()
           .parse(await body());
-        return NextResponse.json(await chat(id, user.id, message));
+        return NextResponse.json(
+          await chat(id, user.id, message, request.signal),
+        );
       }
       if (
         (section === "plan" ||
@@ -175,6 +179,7 @@ async function handler(
             id,
             user.id,
             "Rebalance and personalize the complete event plan using my current requirements.",
+            request.signal,
           ),
         );
       const state = await get_event_state(id, user.id);

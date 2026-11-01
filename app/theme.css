@@ -60,7 +60,7 @@
 }
 :root {
   --ink: #203d38;
-  --muted: #697b74;
+  --muted: #55695f;
   --purple: #167568;
   --purple-dark: #105c51;
   --line: #e3e8df;
@@ -108,7 +108,7 @@ select:focus {
 }
 .eyebrow,
 .page-heading .eyebrow {
-  color: #6b7f70;
+  color: #526b59;
 }
 .card-heading > a,
 .text-button,
@@ -303,10 +303,10 @@ select:focus {
   font-weight: 600;
 }
 .breadcrumb {
-  color: #7c897d;
+  color: var(--muted);
 }
 .breadcrumb span {
-  color: #c7cfc0;
+  color: var(--muted);
 }
 .mode {
   background: #edf3e8;
@@ -487,7 +487,7 @@ select:focus {
   min-width: 0;
 }
 .stat-card > div:first-child {
-  color: #65796c;
+  color: var(--muted);
   font-size: 11px;
   gap: 8px;
 }
@@ -586,7 +586,7 @@ select:focus {
 }
 .dashboard-shortcuts small {
   font-size: 10px;
-  color: #718173;
+  color: var(--muted);
   display: block;
   margin-top: 4px;
   line-height: 1.4;
@@ -647,7 +647,7 @@ select:focus {
 }
 .muted-count {
   background: #edf2e7;
-  color: #5d775c;
+  color: #526b50;
   border-radius: 6px;
 }
 .chart-legend i {
@@ -664,7 +664,7 @@ select:focus {
   font-size: 11px;
 }
 .donut-center small {
-  color: #7b8a76;
+  color: var(--muted);
 }
 .donut-center b {
   color: #315641;
@@ -722,7 +722,7 @@ select:focus {
 }
 .workspace-footer {
   border-color: #e0e7d8;
-  color: #7b8875;
+  color: var(--muted);
   margin-top: 28px;
 }
 .assistant-shortcut {
@@ -733,7 +733,7 @@ select:focus {
   color: #416544;
 }
 .mini-timeline small {
-  color: #6f8268;
+  color: var(--muted);
 }
 .notice {
   background: #f2f3e7;

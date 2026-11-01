@@ -1,3 +1,8 @@
+import {
+  withAIExecution,
+  MAX_AGENT_ROUNDS,
+  MAX_AI_OUTPUT_TOKENS,
+} from "./execution";
 import { z } from "zod";
 import { zodFunction } from "openai/helpers/zod";
 import type { ResponseInput } from "openai/resources/responses/responses";
@@ -196,7 +201,20 @@ export function demoAgent(
       "Offline demo mode supports budget and guest changes, dates, eco-friendly planning, photography allocation, task checklists and vendor or budget questions. Connect an OpenAI API key for open-ended planning. No changes were made.";
   return { state, reply, actions: [] };
 }
-export async function runAgent(initial: EventState, message: string) {
+export function runAgent(
+  initial: EventState,
+  message: string,
+  signal?: AbortSignal,
+) {
+  return withAIExecution(signal, (signal) =>
+    executeAgent(initial, message, signal),
+  );
+}
+async function executeAgent(
+  initial: EventState,
+  message: string,
+  signal: AbortSignal,
+) {
   if (!hasAI())
     return validateAgentResult(initial, {
       ...demoAgent(initial, message),
@@ -243,14 +261,24 @@ export async function runAgent(initial: EventState, message: string) {
     })),
     { role: "user", content: message },
   ];
-  for (let step = 0; step < 6; step++) {
-    const response = await aiClient().responses.create({
-      model: model(),
-      store: false,
-      input,
-      tools,
-      parallel_tool_calls: false,
-    });
+  for (let step = 0; step < MAX_AGENT_ROUNDS; step++) {
+    signal.throwIfAborted();
+    const response = await aiClient().responses.create(
+      {
+        model: model(),
+        store: false,
+        input,
+        tools,
+        parallel_tool_calls: false,
+        max_output_tokens: MAX_AI_OUTPUT_TOKENS,
+      },
+      { signal, maxRetries: 0 },
+    );
+    signal.throwIfAborted();
+    if (response.status === "incomplete")
+      throw new Error(
+        "The planner returned an incomplete response. Please try a more specific request.",
+      );
     for (const item of response.output)
       if (
         item.type === "function_call" ||
@@ -329,10 +357,16 @@ export async function runAgent(initial: EventState, message: string) {
     "The planner reached its action limit. No changes were saved. Try a more specific request.",
   );
 }
-export async function chat(id: string, userId: string, message: string) {
+export async function chat(
+  id: string,
+  userId: string,
+  message: string,
+  signal?: AbortSignal,
+) {
   const { get_event_state } = await import("../db/events");
   const { stageResult } = await import("../db/changes");
   const initial = await get_event_state(id, userId);
-  const result = await runAgent(initial, message);
+  const result = await runAgent(initial, message, signal);
+  signal?.throwIfAborted();
   return stageResult(initial, userId, message, result);
 }

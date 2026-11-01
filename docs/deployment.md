@@ -42,12 +42,29 @@ is requested explicitly in the planner. Without a key, the server uses the
 limited deterministic parser. AI requests still require network access.
 
 Requests enforce the configured origin and validate bounded payloads (256 KiB
-for JSON, 4 MiB audio). A warm function instance permits 10 AI requests per IP per
-minute. This in-memory burst limit resets on cold starts and is not a global
-spending cap. The anonymous demo is not a substitute for a protected production
-service; configure provider budgets and Vercel firewall controls for wider usage.
+for JSON, 4 MiB audio). Each warm instance permits ten requests per IP per minute,
+two simultaneous operations per IP, and four in total. The rate map is bounded to
+10,000 IP entries per minute window. These controls reset on cold starts and are
+not shared across instances; they are not a global quota or spending cap.
+Configure provider budgets and Vercel firewall controls for wider usage.
+
+Planning has a 90-second deadline across at most six tool rounds; extraction and
+transcription each have a 45-second deadline. Responses API output is bounded to 4,096
+tokens per call and automatic SDK retries are disabled. Request
+cancellation reaches the provider transport; obsolete workspace requests are
+aborted and late cancelled drafts are not staged. Provider usage may still occur
+before cancellation is received.
 
 ## Release checks
+
+Before release, run `pnpm check`, `pnpm audit --prod --audit-level=high`, and a
+browser-mode `pnpm build`. Install Chromium with
+`pnpm exec playwright install --with-deps chromium`, then run `pnpm test:e2e`.
+The suite starts an isolated production server on port 3100 with no AI key and
+checks desktop/mobile flows. Leave that port free. CI saves reports for seven
+days; see the [quality review](quality-review.md) for coverage scope and bounds.
+
+Verify the deployed origin separately:
 
 1. Open /dashboard and /events/new without sign-in.
 2. Create an event, refresh, and verify browser persistence.

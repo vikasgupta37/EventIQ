@@ -248,6 +248,7 @@ describe("Frontend state and interactions", () => {
       `tasks/${state.tasks[0].id}`,
       "PATCH",
       { status: "Completed" },
+      { signal: expect.any(AbortSignal) },
     );
   });
   it("previews chat changes and updates the budget only after apply", async () => {

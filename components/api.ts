@@ -3,16 +3,19 @@ export async function api<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  options: { signal?: AbortSignal } = {},
 ): Promise<T> {
+  options.signal?.throwIfAborted();
   if (browserStorageEnabled()) {
     const { browserApi } = await import("@/lib/browser-store");
-    return browserApi<T>(path, method, body);
+    return browserApi<T>(path, method, body, options);
   }
   const response = await fetch(`/api/${path}`, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
+    signal: options.signal,
   });
   if (!response.ok) {
     const error = await response

@@ -11,6 +11,7 @@
   </p>
 
   <p>
+    <a href="https://github.com/vikasgupta37/EventIQ/actions/workflows/quality.yml"><img src="https://github.com/vikasgupta37/EventIQ/actions/workflows/quality.yml/badge.svg" alt="EventIQ quality checks" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-225447?style=flat-square" alt="License: MIT" /></a>
     <img src="https://img.shields.io/badge/Next.js-16-111827?style=flat-square&logo=nextdotjs" alt="Next.js 16" />
     <img src="https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white" alt="React 19" />
@@ -57,11 +58,11 @@ The original brief requires database-backed persistence. **Use the PostgreSQL ed
 
 | Criterion                   | Implemented evidence                                                                                                                                          | How to verify                                                                                                              |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Code quality                | Strict TypeScript, typed tools, separated engines/storage/validation, reusable budget chart                                                                   | `pnpm lint`, `pnpm typecheck`; inspect `lib/` and `components/budget-chart.tsx`                                            |
+| Code quality                | Strict TypeScript, zero-warning lint, focused workspace views, shared dialogs, typed validation and planning engines | `pnpm lint`, `pnpm typecheck`; inspect `components/workspace/` and `lib/` |
 | Security                    | Ownership checks, version-checked updates, bounded JSON/audio, origin checks, validated AI drafts and backup budgets/task graphs, deployment security headers | `tests/auth.test.ts`, `tests/request-body.test.ts`, `tests/state-integrity.test.ts`, `tests/api.test.ts`                   |
-| Efficiency                  | Small SVG chart replaces the chart runtime; deterministic arithmetic; bounded model loops and chat context; burst-limit cleanup once per time window          | `components/budget-chart.tsx`, `lib/agent/orchestrator.ts`, `lib/server/browser-api.ts`                                    |
-| Testing                     | Unit/UI/agent/browser-storage tests plus a PostgreSQL integration suite; CI provisions a separate PostgreSQL service                                          | `pnpm check`, `pnpm test:db`, `.github/workflows/quality.yml`                                                              |
-| Accessibility               | Skip navigation, named landmarks and controls, keyboard focus wrapping/Escape/restore, text alternatives for chart values, reduced-motion styles              | Keyboard tests and axe-core semantic checks in `tests/frontend.test.ts`; manually verify contrast, zoom and screen readers |
+| Efficiency                  | SVG chart, lazy-loaded views, bounded model context/output, whole-operation deadlines, obsolete-request cancellation | `lib/agent/execution.ts`, `tests/ai-execution.test.ts`, `tests/workspace-data.test.ts` |
+| Testing                     | Coverage gates, desktop/mobile browser flows, fresh PostgreSQL integration tests, downloadable CI reports | `pnpm check`, `pnpm test:e2e`, `pnpm test:db`, [quality review](docs/quality-review.md) |
+| Accessibility               | Skip navigation, named controls, modal focus isolation/restore, chart text alternatives, reduced motion, real-browser contrast checks | `tests/frontend.test.ts`, `tests/e2e/public-demo.spec.ts`; manual zoom and screen-reader checks |
 | Problem statement alignment | Reviewable event extraction; budget → guest count → sustainability changes; tasks, timeline, services, recommendations, risks; proposal review and undo       | Follow the demo walkthrough below using the database edition; try the editable Birthday and Wedding examples               |
 
 **Reproduce the database edition:** copy `.env.example` to `.env`, set `NEXT_PUBLIC_STORAGE_MODE=database`, keep `DEMO_MODE=true` for localhost only, and configure `DATABASE_URL` for an isolated UTF-8 PostgreSQL database. Start `pnpm db:local` in another terminal if using the bundled local database. Run `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, then `pnpm dev`. Tests must point to a separate database, not an event workspace. Public database deployments require Google sign-in and `DEMO_MODE=false`; see [deployment settings](docs/deployment.md).
@@ -285,13 +286,13 @@ The broader [typed service surface](lib/tools/index.ts) includes extraction, bud
 | Layer          | Technology                                      | Role                                                             |
 | -------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
 | Application    | Next.js 16.4.3, React 19, TypeScript            | App Router, route handlers, typed UI and domain code             |
-| Presentation   | CSS, Lucide React, Recharts                     | Responsive styling, icons, and budget visualization              |
+| Presentation   | CSS, Lucide React, accessible SVG chart          | Responsive styling, icons, and budget visualization              |
 | Authentication | None in public demo; optional NextAuth / Google | Public access; sign-in retained for the database edition         |
 | Validation     | Zod 4                                           | Request schemas and model-tool argument validation               |
 | Persistence    | Browser localStorage + JSON backups             | Local plans and history; optional PostgreSQL / Prisma edition    |
 | AI             | OpenAI SDK                                      | Structured extraction, Responses tool calling, and transcription |
 | Voice          | MediaRecorder, browser speech synthesis         | On-demand capture and optional spoken replies                    |
-| Tests          | Vitest, Testing Library, jsdom                  | Domain, mocked agent, UI, and API/database tests                 |
+| Tests          | Vitest, Testing Library, Playwright, axe-core    | Unit/UI/API tests, coverage gates, browser and accessibility checks |
 | Local tooling  | pnpm, tsx; optional PostgreSQL tooling          | Development scripts and optional database tests                  |
 
 ## ☁️ Deploy on Vercel
@@ -433,13 +434,15 @@ On Windows, stop the Next.js process before regenerating Prisma if its engine DL
 
 ## 🧪 Testing
 
-Run the project checks from the repository root:
+Use Node.js 22 and pnpm 10.28.2. Set `NEXT_PUBLIC_STORAGE_MODE=browser` before building, then run from the repository root:
 
 ```sh
-pnpm lint
-pnpm typecheck
-pnpm test
+pnpm db:generate
+pnpm check
+pnpm audit --prod --audit-level=high
 pnpm build
+pnpm exec playwright install --with-deps chromium
+pnpm test:e2e
 ```
 
 | Coverage area    | Examples                                                                                           |
@@ -451,9 +454,11 @@ pnpm build
 
 The workspace separates page views, data/request lifecycle, and shared dialogs in `components/workspace/` and `components/ui/`. Page views and editors load on demand. TypeScript-specific ESLint rules run with zero warnings allowed. The budget regression matrix exercises 360 combinations of event type, currency, budget, and guest count, verifying exact conservation of allocated funds and contingency.
 
-**Default tests:** `pnpm test` runs the database-free unit, UI, agent, browser-storage, and stateless API suites. Browser-storage tests cover reloads, backups, storage failures, guest and payment validation, and proposal conflicts. `pnpm check` also runs lint, type checking and the submission check. The accessibility suite uses axe-core in JSDOM with color-contrast checks disabled because JSDOM has no layout engine; a clean result is not a WCAG certification.
+**Unit/UI/API checks:** `pnpm test` runs the database-free suites. `pnpm check` combines zero-warning lint, TypeScript, `pnpm test:coverage`, and submission checks. Coverage gates require 80% lines/statements, 73% functions, and 69% branches in the configured application scope; see the [measured results and exclusions](docs/quality-review.md).
 
-**Database tests:** run `pnpm test:db` with `DATABASE_URL` pointing to a dedicated UTF-8 test database and applied migrations. Its test configuration selects database mode and deterministic planning, independent of the browser-demo setting. Tests create disposable events and clean up their own records. CI runs both suites and builds both storage editions without production credentials.
+**Real browser checks:** `pnpm test:e2e` starts the production build on port 3100 with no API key. Seven scenarios run in desktop and mobile Chromium profiles: persistence, guests/payments, proposal approval/undo, backup restore, keyboard focus, and accessibility/security boundaries. The axe scans include color contrast in both light and dark themes. JSDOM scans remain useful for semantic checks but exclude contrast because they have no layout engine. Passing automated checks is not WCAG certification. CI retains coverage, HTML reports, and failure screenshots/traces for seven days.
+
+**Database tests:** run `pnpm test:db` with `DATABASE_URL` pointing to a dedicated UTF-8 test database and applied migrations. Its test configuration selects database mode and deterministic planning, independent of the browser-demo setting. Tests create their own fixtures without requiring seed data and clean up their records. CI provisions a fresh PostgreSQL service and builds both storage editions without production credentials.
 
 To run only the unit and mocked UI suites:
 
@@ -475,7 +480,7 @@ For the voice check, supply a synthetic recording saying **“Increase the guest
 
 </details>
 
-Mocked agent tests do not establish live model availability. Browser voice mocks do not verify a physical microphone or speaker. No passing CI status or coverage percentage is claimed by this README.
+Mocked agent tests do not establish live model availability. Browser voice mocks do not verify a physical microphone or speaker. The status badge links to the actual workflow results; the [quality review](docs/quality-review.md) records coverage scope and local verification.
 
 ## 🗂 Project structure
 
@@ -540,7 +545,7 @@ All routes below are prefixed with `/api`. In the database edition, resource acc
 | POST                 | `/events/:id/changes/:changeId/{apply,discard,undo}`             | Resolve a proposal; choose one action                |
 | POST                 | `/events/:id/transcribe`                                         | Transcribe an `audio` upload                         |
 
-Typical responses include **400** invalid input, **401** missing authentication adapter, **403** rejected origin, **404** missing/unowned resource, **409** conflict, **413** oversized request, **415** unsupported audio, **422** unusable transcript, **429** throttling, and **503** unavailable service.
+Typical responses include **400** invalid input, **401** missing authentication adapter, **403** rejected origin, **404** missing/unowned resource, **409** conflict, **413** oversized request, **415** unsupported audio, **422** unusable transcript, **429** throttling, **408** cancelled operation, **504** AI deadline exceeded, and **503** unavailable service.
 
 <a id="demo"></a>
 
@@ -565,8 +570,10 @@ Use offline mode for a key-free walkthrough of these supported commands. With co
 
 - **Public demo:** no sign-in. Anyone sharing a browser profile can access its locally saved records. Clearing site data removes them. Export a backup to preserve or transfer plans. Optional database deployments retain Google sign-in.
 - **Server-side credentials:** AI keys stay on the server. `.env`, local database data, dependencies, and build outputs are excluded from Git. Example database credentials are development-only.
-- **Request controls:** stateless demo endpoints check the origin, bound input sizes, validate submitted plans, and apply a per-instance IP burst limit. These limits reset on cold starts; they are not a distributed quota. Database-mode handlers retain ownership checks and database throttling.
+- **Request controls:** stateless demo endpoints check the origin, bound input sizes, validate submitted plans, and allow ten requests per IP per minute, two active operations per IP, and four active operations per warm instance. These limits reset on cold starts; they are not a distributed quota. Database-mode handlers retain ownership checks and database throttling.
 - **Change safety:** proposals use local snapshots and version checks in browser mode; apply and undo reject stale proposals. This does not provide full stale-browser-form protection for manual edits.
+- **AI execution bounds:** planning has one 90-second deadline across at most six tool rounds; extraction and transcription each have 45 seconds. Responses API output is limited to 4,096 tokens per call, automatic SDK retries are disabled, and obsolete workspace requests are cancelled. Cancellation prevents staging a late draft but does not guarantee zero provider charges.
+- **Dependency checks:** `pnpm audit --prod --audit-level=high` checks published advisories. Scoped Prisma tooling overrides and their validation are documented in the [quality review](docs/quality-review.md#dependency-security).
 - **AI data boundary:** planning state and conversation can be sent to the provider. Guest contact records and the expense ledger are not included in the dedicated planning state, but any sensitive information typed into chat is still chat content.
 - **Voice privacy:** recording starts only on request, stops automatically after 60 seconds, and uploads are limited to 4 MiB. EventIQ does not persist raw audio; submitted transcript text becomes ordinary conversation data. Provider data handling still applies.
 - **Planning limits:** cost estimates are illustrative heuristics, not supplier quotes or live currency conversions. Amounts use whole currency units. No invitations, bookings, or payments are sent.
@@ -574,19 +581,22 @@ Use offline mode for a key-free walkthrough of these supported commands. With co
 
 ## 🛣 Future roadmap
 
-These are proposed improvements, not currently shipped capabilities.
+Completed foundations and planned improvements:
 
 - [x] Ship a public browser-storage demo with backup export/import.
 - [x] Retain Google sign-in and separate workspaces in the optional database edition.
-- [ ] Extend client-version checks to manual edits and guard against late event-switch responses.
+- [x] Cancel obsolete workspace requests and guard against late event-switch responses.
+- [ ] Extend client-version checks to manual edits.
 - [ ] Make event-date and payment-date rules explicitly time-zone-aware.
 - [x] Add shared PostgreSQL request limits in the optional database edition.
 - [ ] Add distributed abuse controls for anonymous AI without an event database.
-- [ ] Add monitoring, backup procedures, and CI checks.
+- [x] Add coverage gates, browser regression tests, and CI report artifacts.
+- [ ] Add operational monitoring and database backup procedures.
 - [ ] Connect verified supplier discovery and quote comparison.
 - [ ] Support multi-day events, reminders, and calendar exports.
 - [ ] Add attachments, invoice workflows, and richer expense reporting.
-- [ ] Expand browser, accessibility, and end-to-end coverage.
+- [x] Add desktop/mobile Chromium flows and real-browser accessibility checks.
+- [ ] Extend browser coverage to Firefox, WebKit, and more assistive technologies.
 - [ ] Improve pagination and reduce full-plan rewrites as datasets grow.
 
 ## 🤝 Contributors

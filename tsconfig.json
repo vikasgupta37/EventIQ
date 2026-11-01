@@ -6,6 +6,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -31,5 +32,12 @@
     ".next-production/types/**/*.ts",
     ".next-production/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "artifacts", ".data", "coverage"]
+  "exclude": [
+    "node_modules",
+    "artifacts",
+    ".data",
+    "coverage",
+    "playwright-report",
+    "test-results"
+  ]
 }

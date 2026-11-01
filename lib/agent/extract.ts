@@ -1,3 +1,4 @@
+import { withAIExecution, MAX_AI_OUTPUT_TOKENS } from "./execution";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { eventSchema, type EventInput } from "../validation";
@@ -94,27 +95,38 @@ export function extractDemo(text: string): {
     ],
   };
 }
-export async function extract_event_details(text: string) {
+export function extract_event_details(text: string, signal?: AbortSignal) {
+  return withAIExecution(
+    signal,
+    (signal) => extractDetails(text, signal),
+    45_000,
+  );
+}
+async function extractDetails(text: string, signal: AbortSignal) {
   if (!hasAI()) return extractDemo(text);
-  const response = await aiClient().responses.parse({
-    model: model(),
-    store: false,
-    input: [
-      {
-        role: "system",
-        content: `Extract event details. Today is ${new Date().toISOString().slice(0, 10)}. If the exact day is absent use day 14 and state that assumption in preferences. All missing values must be identified as assumptions in preferences. Never invent confirmed venues or costs.`,
+  const response = await aiClient().responses.parse(
+    {
+      model: model(),
+      store: false,
+      max_output_tokens: MAX_AI_OUTPUT_TOKENS,
+      input: [
+        {
+          role: "system",
+          content: `Extract event details. Today is ${new Date().toISOString().slice(0, 10)}. If the exact day is absent use day 14 and state that assumption in preferences. All missing values must be identified as assumptions in preferences. Never invent confirmed venues or costs.`,
+        },
+        { role: "user", content: text },
+      ],
+      text: {
+        format: zodTextFormat(
+          eventSchema.omit({ venueCapacity: true }).extend({
+            venueCapacity: eventSchema.shape.venueCapacity.removeDefault(),
+          }),
+          "event_details",
+        ),
       },
-      { role: "user", content: text },
-    ],
-    text: {
-      format: zodTextFormat(
-        eventSchema.omit({ venueCapacity: true }).extend({
-          venueCapacity: eventSchema.shape.venueCapacity.removeDefault(),
-        }),
-        "event_details",
-      ),
     },
-  });
+    { signal, maxRetries: 0 },
+  );
   if (!response.output_parsed)
     throw new Error(
       "The AI could not extract event details. Please use the form.",

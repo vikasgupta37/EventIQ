@@ -186,7 +186,8 @@ body {
     .how h2,
     .how h3,
     .features h3,
-    .ai-card .card-heading h2
+    .ai-card .card-heading h2,
+    .attention-card .card-heading h2
   ) {
   color: #d9ebd6;
 }

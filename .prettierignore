@@ -8,3 +8,5 @@ prisma/migrations
 next-env.d.ts
 artifacts
 coverage
+playwright-report
+test-results
