@@ -5,6 +5,8 @@ import { AppError } from "../auth";
 import { planDifferences } from "../changes";
 import type { EventState, Action } from "../types";
 import type { PlanChange } from "../management";
+import { validateAgentResult } from "../agent/result";
+import { eventStateSchema } from "../event-state-schema";
 const select = {
   id: true,
   status: true,
@@ -39,6 +41,7 @@ export async function stageResult(
   request: string,
   result: { state: EventState; reply: string; actions: Action[]; mode: string },
 ) {
+  result = validateAgentResult(initial, result);
   const differences = planDifferences(initial, result.state);
   const response = differences.length
     ? `Proposed changes — not applied yet. Review and apply the preview to update your event.\n\n${result.reply}`
@@ -124,9 +127,9 @@ export async function resolveChange(
         ? "Newer edits prevent undoing this change. Ask the planner for a new change instead."
         : "This preview is stale or already resolved. Discard it and ask the planner again.",
     );
-  const snapshot = JSON.parse(
-    JSON.stringify(undo ? change.before : change.after),
-  ) as EventState;
+  const snapshot = eventStateSchema.parse(undo ? change.before : change.after);
+  if (snapshot.id !== eventId)
+    throw new AppError(409, "This preview belongs to a different event.");
   snapshot.id = eventId;
   snapshot.version = current.version;
   return saveState(

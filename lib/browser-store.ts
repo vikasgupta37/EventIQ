@@ -12,79 +12,19 @@ import {
   taskPatchSchema,
   vendorPatchSchema,
 } from "./validation";
-import {
-  guestSchema,
-  expenseSchema,
-  paymentSchema,
-  type Guest,
-  type Expense,
-  type PlanChange,
-} from "./management";
-import { eventStateSchema } from "./event-state-schema";
+import { guestSchema, expenseSchema, paymentSchema } from "./management";
 import { planDifferences } from "./changes";
 import { validateTaskGraph } from "./tasks";
 import type { EventState, Action } from "./types";
+import { validateAgentResult } from "./agent/result";
 
 export const browserDataKey = "eventiq-browser-data-v1";
-type StoredChange = PlanChange & {
-  before: EventState;
-  after: EventState;
-  actions: Action[];
-};
-type RecordData = {
-  state: EventState;
-  guests: Guest[];
-  expenses: Expense[];
-  changes: StoredChange[];
-};
-type Store = { format: 1; events: RecordData[] };
-const storedSchema = z.object({
-  format: z.literal(1),
-  events: z
-    .array(
-      z.object({
-        state: eventStateSchema,
-        guests: z.array(guestSchema.extend({ id: z.string() })).max(2000),
-        expenses: z
-          .array(
-            expenseSchema.extend({
-              id: z.string(),
-              payments: z
-                .array(paymentSchema.extend({ id: z.string() }))
-                .max(1000),
-            }),
-          )
-          .max(1000),
-        changes: z
-          .array(
-            z.object({
-              id: z.string(),
-              status: z.enum(["Pending", "Applied", "Discarded", "Undone"]),
-              baseVersion: z.number().int(),
-              appliedVersion: z.number().int().nullable(),
-              request: z.string(),
-              explanation: z.string(),
-              differences: z.array(
-                z.object({
-                  section: z.string(),
-                  label: z.string(),
-                  before: z.string(),
-                  after: z.string(),
-                }),
-              ),
-              createdAt: z.string(),
-              before: eventStateSchema,
-              after: eventStateSchema,
-              actions: z.array(
-                z.object({ tool: z.string(), summary: z.string() }),
-              ),
-            }),
-          )
-          .max(20),
-      }),
-    )
-    .max(30),
-});
+import {
+  storedSchema,
+  type Store,
+  type RecordData,
+  type StoredChange,
+} from "./browser-backup";
 function read(): Store {
   let raw: string | null;
   try {
@@ -185,11 +125,7 @@ async function plan(id: string, message: string) {
     state: { ...initial, messages: initial.messages.slice(-12), actions: [] },
     message,
   });
-  const after = eventStateSchema.parse(result.state);
-  if (after.id !== id)
-    throw new Error(
-      "The planner returned a different event. No changes were saved.",
-    );
+  const { state: after } = validateAgentResult(initial, result);
   return edit((store) => {
     const item = record(store, id);
     const current = item.state;

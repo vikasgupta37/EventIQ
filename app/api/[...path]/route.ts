@@ -7,11 +7,16 @@ async function handler(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
+  let response: Response;
   if (browserStorageEnabled()) {
     const { browserHandler } = await import("@/lib/server/browser-api");
-    return browserHandler(request, context);
+    response = await browserHandler(request, context);
+  } else {
+    const { GET } = await import("@/lib/server/database-api");
+    response = await GET(request, context);
   }
-  const { GET } = await import("@/lib/server/database-api");
-  return GET(request, context);
+  // Event data and AI replies must never enter a shared HTTP cache.
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 export { handler as GET, handler as POST, handler as PATCH, handler as DELETE };

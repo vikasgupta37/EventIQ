@@ -233,7 +233,7 @@ describe("Guest, expense and approval workflows", () => {
       "POST",
       {},
     );
-    expect(undone.status).toBe(200);
+    expect(undone.status, await undone.clone().text()).toBe(200);
     expect(planDifferences(before, await undone.json())).toEqual([]);
     expect(
       expenseSummary(await (await request(path("/expenses"))).json()).paid,

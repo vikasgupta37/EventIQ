@@ -18,7 +18,9 @@ const include = {
   recommendations: true,
   risks: true,
   conversation: {
-    include: { messages: { orderBy: { createdAt: "asc" as const } } },
+    include: {
+      messages: { orderBy: { createdAt: "desc" as const }, take: 200 },
+    },
   },
   actions: { orderBy: { createdAt: "desc" as const }, take: 50 },
 };
@@ -49,7 +51,7 @@ export async function get_event_state(
     recommendations: e.recommendations,
     risks: e.risks,
     messages:
-      e.conversation?.messages.map((m) => ({
+      e.conversation?.messages.reverse().map((m) => ({
         ...m,
         createdAt: m.createdAt.toISOString(),
       })) ?? [],

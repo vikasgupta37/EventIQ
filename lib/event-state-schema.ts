@@ -28,11 +28,13 @@ export const eventStateSchema = eventSchema
       .max(30),
     tasks: z
       .array(
-        taskSchema.extend({
-          id,
-          generated: z.boolean(),
-          customized: z.boolean().optional(),
-        }),
+        taskSchema
+          .extend({
+            id,
+            generated: z.boolean(),
+            customized: z.boolean().optional(),
+          })
+          .strip(),
       )
       .max(300),
     timeline: z
@@ -143,6 +145,16 @@ export const eventStateSchema = eventSchema
         new Set(state[key].map((item) => item.name)).size !== state[key].length
       )
         issue(key, "Category names must be unique.");
+    }
+    for (const [name, allocation] of Object.entries(state.budgetOverrides)) {
+      const category = state.categories.find(
+        (category) => category.name === name,
+      );
+      if (!category || category.allocated !== allocation)
+        issue(
+          "budgetOverrides",
+          "Fixed allocations must match their budget categories.",
+        );
     }
     try {
       validateTaskGraph(state.tasks, state.date);

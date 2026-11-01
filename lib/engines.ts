@@ -37,6 +37,27 @@ export function calculate_budget(
   weights?: Record<string, number>,
   overrides?: Record<string, number>,
 ): { categories: Category[]; contingency: number } {
+  for (const [name, weight] of Object.entries(weights ?? {})) {
+    if (
+      !categoryNames.includes(name) ||
+      !Number.isFinite(weight) ||
+      weight <= 0 ||
+      weight > 1e12
+    )
+      throw new Error(
+        "Budget weights must be finite, positive values for known categories.",
+      );
+  }
+  for (const [name, allocation] of Object.entries(overrides ?? {})) {
+    if (
+      !categoryNames.includes(name) ||
+      !Number.isSafeInteger(allocation) ||
+      allocation < 0
+    )
+      throw new Error(
+        "Fixed allocations must be non-negative whole amounts for known categories.",
+      );
+  }
   const unit = e.currency === "INR" ? 1 : e.currency === "USD" ? 0.014 : 0.012;
   const wedding = e.eventType === "Wedding";
   const costs = [
@@ -76,6 +97,10 @@ export function calculate_budget(
   const total = scores.reduce((a, b) => a + b, 0);
   let remaining = available - fixedTotal;
   const last = scores.findLastIndex((v) => v > 0);
+  if (last === -1 && remaining !== 0)
+    throw new Error(
+      "Fully fixed allocations must use the available budget after contingency.",
+    );
   const categories = categoryNames.map((name, i) => {
     const allocated =
       overrides?.[name] ??

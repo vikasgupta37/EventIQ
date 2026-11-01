@@ -1439,7 +1439,7 @@ td small {
 .milestone-content {
   padding: 5px 0;
 }
-.milestone-content h3 {
+.milestone-content h2 {
   font-size: 14px;
   margin: 10px 0 5px;
 }
@@ -1499,7 +1499,7 @@ td small {
   display: block;
   margin-top: 5px;
 }
-.vendor-card h4 {
+.vendor-card h3 {
   font-size: 11px;
   margin-top: 22px;
 }
@@ -2520,7 +2520,7 @@ td small {
   .full-timeline article:before {
     left: 95px;
   }
-  .milestone-content h3 {
+  .milestone-content h2 {
     font-size: 12px;
   }
   .milestone-content small {

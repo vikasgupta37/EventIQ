@@ -3,12 +3,12 @@ export async function readJsonBody(
   request: Request,
   maxBytes = 32 * 1024,
 ): Promise<unknown> {
-  if (
-    !request.headers
-      .get("content-type")
-      ?.toLowerCase()
-      .startsWith("application/json")
-  )
+  const mediaType = request.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (mediaType !== "application/json")
     throw new AppError(415, "Send JSON with Content-Type: application/json.");
   const reader = request.body?.getReader();
   if (!reader) throw new AppError(400, "A JSON body is required.");

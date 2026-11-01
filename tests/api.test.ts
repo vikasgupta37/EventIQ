@@ -7,6 +7,7 @@ import { db } from "../lib/db/client";
 import { extractDemo } from "../lib/agent/extract";
 import { get_event_state, saveState } from "../lib/db/events";
 import type { EventState } from "../lib/types";
+import { stageResult } from "../lib/db/changes";
 const ids: string[] = [];
 process.env.DEMO_MODE = "true";
 process.env.OPENAI_API_KEY = "";
@@ -39,6 +40,45 @@ afterAll(async () => {
   await db.$disconnect();
 });
 describe("PostgreSQL API integration", () => {
+  it("rejects malformed AI state before creating a proposal or conversation message", async () => {
+    const initial = await fixture();
+    const invalid = structuredClone(initial);
+    invalid.categories[0].allocated += 1;
+    await expect(
+      stageResult(initial, "demo-user", "Change budget", {
+        state: invalid,
+        reply: "Draft",
+        actions: [],
+        mode: "ai",
+      }),
+    ).rejects.toThrow();
+    expect(await db.planChange.count({ where: { eventId: initial.id } })).toBe(
+      0,
+    );
+    const current = await get_event_state(initial.id, "demo-user");
+    expect(current.categories).toEqual(initial.categories);
+    expect(current.messages).toHaveLength(0);
+  });
+  it("returns the latest 200 messages in chronological order and forbids caching", async () => {
+    const initial = await fixture();
+    const conversation = await db.conversation.findUniqueOrThrow({
+      where: { eventId: initial.id },
+    });
+    await db.conversationMessage.createMany({
+      data: Array.from({ length: 205 }, (_, i) => ({
+        conversationId: conversation.id,
+        role: "user",
+        content: `History ${i}`,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)),
+      })),
+    });
+    const response = await request(`events/${initial.id}`);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const loaded: EventState = await response.json();
+    expect(loaded.messages).toHaveLength(200);
+    expect(loaded.messages[0].content).toBe("History 5");
+    expect(loaded.messages.at(-1)?.content).toBe("History 204");
+  });
   it("creates, updates and persists the complete demo journey", async () => {
     const extraction = await request("extract", "POST", {
       text: "Wedding in Delhi, February 2027, 250 guests, ₹12 lakh budget.",
@@ -118,9 +158,12 @@ describe("PostgreSQL API integration", () => {
         })
       ).status,
     ).toBe(200);
-    expect(
-      (await request(`events/${s.id}/budget/rebalance`, "POST", {})).status,
-    ).toBe(200);
+    const rebalance = await request(
+      `events/${s.id}/budget/rebalance`,
+      "POST",
+      {},
+    );
+    expect(rebalance.status, await rebalance.clone().text()).toBe(200);
     const persisted = await get_event_state(s.id, "demo-user");
     expect(persisted.tasks.find((t) => t.id === task.id)?.status).toBe(
       "Completed",

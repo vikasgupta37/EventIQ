@@ -1,6 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { readJsonBody } from "../lib/request-body";
 describe("Bounded JSON input", () => {
+  it.each(["application/jsonp", "application/json-malicious"])(
+    "rejects the JSON lookalike media type %s",
+    async (contentType) => {
+      await expect(
+        readJsonBody(
+          new Request("https://eventiq.test", {
+            method: "POST",
+            headers: { "content-type": contentType },
+            body: "{}",
+          }),
+        ),
+      ).rejects.toMatchObject({ status: 415 });
+    },
+  );
   it("accepts valid UTF-8 JSON", async () => {
     const request = new Request("https://eventiq.test/api/events", {
       method: "POST",

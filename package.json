@@ -12,7 +12,7 @@
     "build": "prisma generate && next build",
     "build:vercel": "node scripts/vercel-build.mjs",
     "start": "next start --hostname 127.0.0.1",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude tests/api.test.ts --exclude tests/management.test.ts --exclude tests/rate-limit.test.ts",
     "db:local": "tsx scripts/local-db.ts",

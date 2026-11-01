@@ -51,6 +51,8 @@ As plans change, ask the AI planner for help. EventIQ calculates the consequence
 
 ## Evaluation evidence
 
+See the [quality review and regression map](docs/quality-review.md) for the latest implementation changes and reproducible checks.
+
 The original brief requires database-backed persistence. **Use the PostgreSQL edition to evaluate that requirement.** The hosted browser demo is a separate, account-free demonstration; it does not establish cloud persistence or cross-device access.
 
 | Criterion                   | Implemented evidence                                                                                                                                          | How to verify                                                                                                              |
@@ -443,9 +445,11 @@ pnpm build
 | Coverage area    | Examples                                                                                           |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
 | Domain logic     | Extraction, valid dates, allocation totals, fixed budgets, task preservation, risks                |
-| Agent behavior   | Mocked tool selection, argument validation, and provider failures                                  |
+| Agent behavior   | Mocked tool selection, malformed arguments, bounded loops/context, oversized output, partial-failure rollback |
 | API and database | Persistence, ownership, stale-state checks, guests, payments, proposal lifecycle                   |
-| UI               | Creation, chat approval, task actions, expenses, voice controls, appearance, and clock preferences |
+| UI               | Creation, chat approval, task actions, eight-page accessibility checks, modal isolation, stale event responses, expenses, voice, themes, clock |
+
+The workspace separates page views, data/request lifecycle, and shared dialogs in `components/workspace/` and `components/ui/`. Page views and editors load on demand. TypeScript-specific ESLint rules run with zero warnings allowed. The budget regression matrix exercises 360 combinations of event type, currency, budget, and guest count, verifying exact conservation of allocated funds and contingency.
 
 **Default tests:** `pnpm test` runs the database-free unit, UI, agent, browser-storage, and stateless API suites. Browser-storage tests cover reloads, backups, storage failures, guest and payment validation, and proposal conflicts. `pnpm check` also runs lint, type checking and the submission check. The accessibility suite uses axe-core in JSDOM with color-contrast checks disabled because JSDOM has no layout engine; a clean result is not a WCAG certification.
 

@@ -108,13 +108,36 @@ afterEach(() => {
   cleanup();
 });
 describe("Frontend state and interactions", () => {
-  it.each(["dashboard", "planner", "budget"])(
+  it.each([
+    "dashboard",
+    "planner",
+    "budget",
+    "timeline",
+    "tasks",
+    "vendors",
+    "ideas",
+    "risks",
+  ])(
     "has no automated semantic accessibility violations on %s",
     async (section) => {
       const { container } = render(createElement(Workspace, { section }));
-      await waitFor(() =>
-        expect(screen.queryByText("Bringing your plans together…")).toBeNull(),
-      );
+      const ready = {
+        dashboard: () =>
+          screen.findByRole("heading", { name: "Test celebration" }),
+        planner: () =>
+          screen.findByRole("heading", { name: "Your event brief" }),
+        budget: () => screen.findByRole("table"),
+        timeline: () =>
+          screen.findByRole("heading", {
+            name: "Confirm venue capacity for 250 guests",
+          }),
+        tasks: () => screen.findByRole("button", { name: "Add task" }),
+        vendors: () => screen.findByText("Your service checklist"),
+        ideas: () => screen.findByRole("button", { name: "All ideas" }),
+        risks: () =>
+          screen.findByRole("heading", { name: state.risks[0].title }),
+      };
+      await ready[section as keyof typeof ready]();
       // JSDOM has no layout engine; contrast needs a real-browser review.
       const results = await axe.run(container, {
         rules: { "color-contrast": { enabled: false } },
@@ -151,8 +174,12 @@ describe("Frontend state and interactions", () => {
     render(createElement(Workspace, { section: "tasks" }));
     const trigger = await screen.findByRole("button", { name: "Add task" });
     await user.click(trigger);
-    const dialog = screen.getByRole("dialog");
+    const dialog = await screen.findByRole("dialog");
     expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.querySelector<HTMLElement>(".main-shell")?.inert).toBe(
+      true,
+    );
+    expect(document.body.style.overflow).toBe("hidden");
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Save task" }),
@@ -160,6 +187,10 @@ describe("Frontend state and interactions", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(trigger);
+    expect(document.querySelector<HTMLElement>(".main-shell")?.inert).not.toBe(
+      true,
+    );
+    expect(document.body.style.overflow).not.toBe("hidden");
   });
   it.each(["Birthday", "Wedding"])(
     "loads a reviewable %s example without creating records",

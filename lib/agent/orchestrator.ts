@@ -5,6 +5,7 @@ import { aiClient, hasAI, model, parseAmount } from "./extract";
 import { create_event_plan, categoryNames, daysUntil, money } from "../engines";
 import { eventSchema } from "../validation";
 import type { Action, EventState } from "../types";
+import { validateAgentResult } from "./result";
 
 const changeSchema = z
   .object({
@@ -23,18 +24,18 @@ const planSchema = z
       .array(
         z.object({
           category: z.enum(categoryNames as [string, ...string[]]),
-          weight: z.number().positive(),
+          weight: z.number().positive().max(1000000),
         }),
       )
       .length(10),
     ideas: z
       .array(
         z.object({
-          category: z.string(),
-          idea: z.string(),
-          reason: z.string(),
-          impact: z.string(),
-          estimatedCost: z.number().int().min(0),
+          category: z.string().max(60),
+          idea: z.string().max(1000),
+          reason: z.string().max(2000),
+          impact: z.string().max(1000),
+          estimatedCost: z.number().int().min(0).max(1000000000),
           priority: z.enum(["High", "Medium", "Low"]),
         }),
       )
@@ -196,7 +197,11 @@ export function demoAgent(
   return { state, reply, actions: [] };
 }
 export async function runAgent(initial: EventState, message: string) {
-  if (!hasAI()) return { ...demoAgent(initial, message), mode: "demo" };
+  if (!hasAI())
+    return validateAgentResult(initial, {
+      ...demoAgent(initial, message),
+      mode: "demo",
+    });
   let state = structuredClone(initial);
   const actions: Action[] = [];
   const empty = z.object({}).strict();
@@ -255,23 +260,27 @@ export async function runAgent(initial: EventState, message: string) {
         input.push(item);
     const calls = response.output.filter((o) => o.type === "function_call");
     if (!calls.length)
-      return {
+      return validateAgentResult(initial, {
         state,
         reply: response.output_text || "Your plan is ready to review.",
         actions,
         mode: "ai",
-      };
+      });
+    if (calls.length > 1)
+      throw new Error(
+        "The planner returned concurrent actions. Please try again.",
+      );
     for (const call of calls) {
       let output: unknown;
       const args = JSON.parse(call.arguments);
       if (call.name === "get_event_state") {
         empty.parse(args);
-        output = state;
+        output = { ...state, messages: [], actions: [] };
       } else if (call.name === "update_event_state") {
         const result = update(state, changeSchema.parse(args));
         state = result.state;
         actions.push(...result.actions);
-        output = state;
+        output = { ...state, messages: [], actions: [] };
       } else if (call.name === "create_event_plan") {
         const plan = planSchema.parse(args);
         if (new Set(plan.weights.map((w) => w.category)).size !== 10)
@@ -299,7 +308,7 @@ export async function runAgent(initial: EventState, message: string) {
           summary:
             "Personalized budget weights and recommendations; validated all totals.",
         });
-        output = state;
+        output = { ...state, messages: [], actions: [] };
       } else if (call.name === "search_vendors") {
         empty.parse(args);
         output = {

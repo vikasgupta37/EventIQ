@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { create_event_plan } from "../lib/engines";
+import { create_event_plan, categoryNames } from "../lib/engines";
 const mock = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("../lib/agent/extract", async (importOriginal) => {
   const original =
@@ -19,6 +19,122 @@ beforeEach(() => {
   mock.create.mockReset();
 });
 describe("OpenAI tool orchestration with mocked transport", () => {
+  it("bounds repeated tool calls and leaves the original plan unchanged", async () => {
+    mock.create.mockResolvedValue({
+      output: [
+        {
+          type: "function_call",
+          name: "get_event_state",
+          call_id: "repeat",
+          arguments: "{}",
+        },
+      ],
+    });
+    const initial = create_event_plan(input, "limit");
+    const saved = structuredClone(initial);
+    await expect(runAgent(initial, "Keep planning")).rejects.toThrow(
+      "action limit",
+    );
+    expect(mock.create).toHaveBeenCalledTimes(6);
+    expect(initial).toEqual(saved);
+  });
+  it.each([
+    ["unknown tool", "delete_event", "{}"],
+    ["malformed arguments", "update_event_state", "{"],
+    [
+      "duplicate category weights",
+      "create_event_plan",
+      JSON.stringify({
+        weights: categoryNames.map(() => ({ category: "Venue", weight: 1 })),
+        ideas: [],
+      }),
+    ],
+    [
+      "oversized personalized idea",
+      "create_event_plan",
+      JSON.stringify({
+        weights: categoryNames.map((category) => ({ category, weight: 1 })),
+        ideas: [
+          {
+            category: "Food",
+            idea: "x".repeat(6001),
+            reason: "Seasonal",
+            impact: "Low waste",
+            estimatedCost: 0,
+            priority: "High",
+          },
+        ],
+      }),
+    ],
+  ])("rejects %s without modifying state", async (_name, name, args) => {
+    mock.create.mockResolvedValue({
+      output: [
+        { type: "function_call", name, call_id: "invalid", arguments: args },
+      ],
+    });
+    const initial = create_event_plan(input, "invalid-tool");
+    const saved = structuredClone(initial);
+    await expect(runAgent(initial, "Plan")).rejects.toThrow();
+    expect(initial).toEqual(saved);
+  });
+  it("discards a valid draft if a later model request fails", async () => {
+    mock.create
+      .mockResolvedValueOnce({
+        output: [
+          {
+            type: "function_call",
+            name: "update_event_state",
+            call_id: "draft",
+            arguments: JSON.stringify({
+              budget: 1000000,
+              guestCount: null,
+              date: null,
+              sustainable: null,
+              location: null,
+              theme: null,
+              photographyAllocation: null,
+            }),
+          },
+        ],
+      })
+      .mockRejectedValueOnce(new Error("Connection lost"));
+    const initial = create_event_plan(input, "late-failure");
+    const saved = structuredClone(initial);
+    await expect(runAgent(initial, "Reduce budget")).rejects.toThrow(
+      "Connection lost",
+    );
+    expect(initial).toEqual(saved);
+  });
+  it("does not resend conversation history inside tool results", async () => {
+    mock.create
+      .mockResolvedValueOnce({
+        output: [
+          {
+            type: "function_call",
+            name: "get_event_state",
+            call_id: "read",
+            arguments: "{}",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ output: [], output_text: "Plan reviewed." });
+    const initial = create_event_plan(input, "context");
+    initial.messages = Array.from({ length: 20 }, (_, i) => ({
+      role: "user",
+      content: `Message ${i}`,
+    }));
+    await runAgent(initial, "Review plan");
+    const sent = mock.create.mock.calls[1][0];
+    const output = sent.input.find(
+      (item: { type?: string }) => item.type === "function_call_output",
+    );
+    expect(JSON.parse(output.output).messages).toEqual([]);
+    expect(
+      sent.input.filter((item: { role?: string }) => item.role === "user"),
+    ).toHaveLength(13);
+    expect(sent.store).toBe(false);
+    expect(sent.parallel_tool_calls).toBe(false);
+  });
   it("executes a model-selected update and supplies the result before final text", async () => {
     mock.create
       .mockResolvedValueOnce({

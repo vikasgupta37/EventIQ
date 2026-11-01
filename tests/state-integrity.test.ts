@@ -5,6 +5,23 @@ import { eventStateSchema } from "../lib/event-state-schema";
 
 const plan = () => create_event_plan(eventExample("Wedding"), "integrity");
 describe("Untrusted event-state integrity", () => {
+  it("normalizes persistence metadata out of a task snapshot", () => {
+    const state = plan();
+    const parsed = eventStateSchema.parse({
+      ...state,
+      tasks: state.tasks.map((task) => ({ ...task, eventId: state.id })),
+    });
+    expect(parsed.tasks[0]).not.toHaveProperty("eventId");
+    expect(parsed.tasks[0].title).toBe(state.tasks[0].title);
+  });
+  it("rejects fixed allocations that disagree with the budget", () => {
+    const state = plan();
+    state.budgetOverrides.Photography =
+      state.categories.find((c) => c.name === "Photography")!.allocated + 1;
+    expect(eventStateSchema.safeParse(state).success).toBe(false);
+    state.budgetOverrides = { Unknown: 0 };
+    expect(eventStateSchema.safeParse(state).success).toBe(false);
+  });
   it.each(["Wedding", "Birthday"] as const)(
     "accepts a balanced %s example with valid task dependencies",
     (type) => {
